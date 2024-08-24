@@ -103,7 +103,7 @@ export async function updateForm(
       title,
       description,
       fields: {
-        deleteMany: {}, // Clear existing fields
+        deleteMany: {},
         create: fields.map((field) => ({
           label: field.label,
           type: field.type,
@@ -142,7 +142,6 @@ export async function addFormField(
 }
 
 export async function deleteFormField(fieldId: number) {
-  // Optionally, you can validate that the field exists before deleting it
   const field = await prisma.field.findUnique({
     where: { id: fieldId },
   });
@@ -151,7 +150,6 @@ export async function deleteFormField(fieldId: number) {
     throw new Error(`Field with ID ${fieldId} does not exist`);
   }
 
-  // Delete the field
   const deletedField = await prisma.field.delete({
     where: { id: fieldId },
   });

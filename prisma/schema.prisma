@@ -29,8 +29,8 @@ model Field {
   form      Form     @relation(fields: [formId], references: [id])
   formId    Int
   label     String
-  type      String   // e.g., "email", "phone", "multiselect", "checkbox"
-  options   String[] // Array of options for multiselect/checkbox
+  type      String  
+  options   String[] 
   required  Boolean  @default(false)
   responses Response[]
 }
