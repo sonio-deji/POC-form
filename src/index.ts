@@ -133,7 +133,7 @@ export async function addFormField(
       formId,
       label: fieldData.label,
       type: fieldData.type,
-      options: fieldData.options || null,
+      options: fieldData.options,
       required: fieldData.required || false,
     },
   });
