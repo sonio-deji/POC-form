@@ -13,41 +13,89 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id            String     @id @default(cuid())
+  email         String     @unique
+  emailVerified Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  password      String
+  firstName     String
+  lastName      String
+  businesses    Business[]
+}
 
+model Business {
+  id           String   @id @default(cuid())
+  businessName String
+  location     String
+  about        String
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  website      Website? @relation("BusinessToWebsite")
+  // websiteId    String? @unique
+}
+
+model Website {
+  id          String   @id @default(cuid())
+  name        String?
+  footer      String?
+  header      String?
+  favicon     String?
+  description String?
+  content     String?
+  page        Page[]
+  businessId  String   @unique
+  business    Business @relation(fields: [businessId], references: [id], name: "BusinessToWebsite")
+}
+
+model Page {
+  id          String  @id @default(cuid())
+  slug        String
+  title       String?
+  websiteId   String
+  description String?
+  label       String?
+  website     Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  content     String?
+
+  @@unique([slug, websiteId])
+}
 
 model Form {
-  id          Int       @id @default(autoincrement())
+  id          Int          @id @default(autoincrement())
   title       String
   description String?
   fields      Field[]
   submissions Submission[]
-  createdAt   DateTime  @default(now())
+  businessId  String
+  createdAt   DateTime     @default(now())
 }
 
 model Field {
-  id        Int      @id @default(autoincrement())
-  form      Form     @relation(fields: [formId], references: [id])
+  id        Int        @id @default(autoincrement())
+  form      Form       @relation(fields: [formId], references: [id])
   formId    Int
   label     String
-  type      String  
-  options   String[] 
-  required  Boolean  @default(false)
+  type      String
+  options   String[]
+  required  Boolean    @default(false)
   responses Response[]
 }
 
 model Submission {
-  id         Int       @id @default(autoincrement())
-  form       Form      @relation(fields: [formId], references: [id])
-  formId     Int
-  responses  Response[]
-  submittedAt DateTime @default(now())
+  id          Int        @id @default(autoincrement())
+  form        Form       @relation(fields: [formId], references: [id])
+  formId      Int
+  responses   Response[]
+  submittedAt DateTime   @default(now())
 }
 
 model Response {
-  id           Int      @id @default(autoincrement())
- submission   Submission @relation(fields: [submissionId], references: [id])
+  id           Int        @id @default(autoincrement())
+  submission   Submission @relation(fields: [submissionId], references: [id])
   submissionId Int
-  field        Field     @relation(fields: [fieldId], references: [id])
+  field        Field      @relation(fields: [fieldId], references: [id])
   fieldId      Int
-  value        String   
+  value        String
 }
