@@ -2,30 +2,43 @@ import { NextFunction, Request, Response } from "express";
 import * as jwt from "jsonwebtoken";
 import { HttpStatusCode } from "../errors/appError";
 
-export const verifyApiToken = async (
+// extend Request type to include userId
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+    }
+  }
+}
+
+export const verifyApiToken = (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  const { authorization: authHeader } = req.headers;
-  console.log(authHeader.split(" "));
-  if (!authHeader) {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(HttpStatusCode.UNAUTHORIZED).json({
-      error: "Authorization header not found",
+      error: "Authorization header not found or invalid",
       title: `BadRequestError: "Invalid JWT Token"`,
     });
   }
-  const [, tkn] = authHeader.split(" ");
-  console.log(tkn);
+
+  const token = authHeader.split(" ")[1];
 
   try {
-    jwt.verify(tkn, process.env.JWT_SEC, (error, user) => {
-      if (error) res.status(403).json("Token is not valid");
-      next();
-    });
-  } catch (e) {
-    console.log(e);
-  }
+    const decoded = jwt.verify(token, process.env.JWT_SEC as string) as {
+      userid: string;
+      businessId: string;
+    };
 
-  next();
+    req.userId = decoded.userid;
+    // req.businessId = decoded.businessId;
+    next();
+  } catch (error) {
+    return res.status(HttpStatusCode.BAD_REQUEST).json({
+      error: "Token is not valid or expired",
+    });
+  }
 };

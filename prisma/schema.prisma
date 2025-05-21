@@ -30,9 +30,10 @@ model Business {
   businessName String
   location     String
   about        String
-  userId       String   @unique
+  userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   website      Website? @relation("BusinessToWebsite")
+  form         Form[]
   // websiteId    String? @unique
 }
 
@@ -45,8 +46,12 @@ model Website {
   description String?
   content     String?
   page        Page[]
+  url         String   @unique()
+  homePage    String   @default("/")
   businessId  String   @unique
-  business    Business @relation(fields: [businessId], references: [id], name: "BusinessToWebsite")
+  published   Boolean  @default(false)
+  urlVisits   Int      @default(0)
+  business    Business @relation(fields: [businessId], references: [id], name: "BusinessToWebsite", onDelete: Cascade)
 }
 
 model Page {
@@ -58,6 +63,7 @@ model Page {
   label       String?
   website     Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   content     String?
+  views       Int     @default(0)
 
   @@unique([slug, websiteId])
 }
@@ -70,11 +76,12 @@ model Form {
   submissions Submission[]
   businessId  String
   createdAt   DateTime     @default(now())
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
 }
 
 model Field {
   id        Int        @id @default(autoincrement())
-  form      Form       @relation(fields: [formId], references: [id])
+  form      Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
   formId    Int
   label     String
   type      String
@@ -85,7 +92,7 @@ model Field {
 
 model Submission {
   id          Int        @id @default(autoincrement())
-  form        Form       @relation(fields: [formId], references: [id])
+  form        Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
   formId      Int
   responses   Response[]
   submittedAt DateTime   @default(now())
@@ -93,9 +100,9 @@ model Submission {
 
 model Response {
   id           Int        @id @default(autoincrement())
-  submission   Submission @relation(fields: [submissionId], references: [id])
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   submissionId Int
-  field        Field      @relation(fields: [fieldId], references: [id])
+  field        Field      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   fieldId      Int
   value        String
 }

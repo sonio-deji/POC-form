@@ -1,12 +1,12 @@
 export enum HttpStatusCode {
   OK = 200,
   BAD_REQUEST = 400,
-  NOT_FOUND = 404,
-  INTERNAL_SERVER = 500,
   UNAUTHORIZED = 401,
+  FORBIDDEN = 403, // 🔥 Add this
+  NOT_FOUND = 404,
   EXISTS = 409,
+  INTERNAL_SERVER = 500,
 }
-
 class BaseError extends Error {
   public readonly name: string;
   public readonly statusCode: HttpStatusCode;
@@ -78,6 +78,23 @@ export class InvalidParameterError extends BaseError {
     super(
       `InvalidParameterError`,
       HttpStatusCode.BAD_REQUEST,
+      true,
+      `${param}`
+    );
+  }
+}
+
+export class ForbiddenError extends BaseError {
+  constructor(param: string) {
+    super("ForbiddenError", HttpStatusCode.FORBIDDEN, true, `${param}`);
+  }
+}
+
+export class InternalServerError extends BaseError {
+  constructor(param: string) {
+    super(
+      "InternalServerError",
+      HttpStatusCode.INTERNAL_SERVER,
       true,
       `${param}`
     );

@@ -1,5 +1,6 @@
 import * as EmailValidator from "email-validator";
 
-export const validateEmail = (email) => {
+export const validateEmail = (email: string) => {
+  console.log(email, "email");
   return EmailValidator.validate(email);
 };
