@@ -1,5 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client";
-import * as express from "express";
+import express from "express";
 import authRouter from "./controller/authentication";
 import * as dotenv from "dotenv";
 import { Application, NextFunction, Request, Response } from "express";
@@ -13,12 +13,17 @@ import {
 } from "./errors/appError";
 import formRouter from "./controller/form";
 import { verifyApiToken } from "./middleware/verifyToken";
-import * as swaggerjsdocs from "swagger-jsdoc";
-import * as swaggerui from "swagger-ui-express";
+import swaggerjsdocs from "swagger-jsdoc";
+import swaggerui from "swagger-ui-express";
 import businessRouter from "./controller/business";
 import { checkEmailVerified } from "./middleware/emailVerified";
 import { handlePrismaError } from "./utils/PrimaErrorHandler";
 import websiteRoute from "./controller/website";
+import analytics from "./controller/analytics";
+import publicWebsite from "./controller/publicWebsite";
+import pageRoutes from "./controller/page";
+import invoiceRoutes from "./controller/invoice";
+import forgotPassword from "./controller/forgotpassword";
 
 dotenv.config();
 const PORT = process.env.PORT || 5000;
@@ -73,6 +78,11 @@ app.use("/api/user", authRouter);
 app.use("/api/form", verifyApiToken, formRouter);
 app.use("/api/business", verifyApiToken, checkEmailVerified, businessRouter);
 app.use("/api/website", verifyApiToken, checkEmailVerified, websiteRoute);
+app.use("/api/analytics", verifyApiToken, checkEmailVerified, analytics);
+app.use("/api/publicwebsite", publicWebsite);
+app.use("/api/pages", verifyApiToken, checkEmailVerified, pageRoutes);
+app.use("/api/invoices", verifyApiToken, checkEmailVerified, invoiceRoutes);
+app.use("/api/auth", forgotPassword);
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   // Handle specific Prisma errors
   if (err instanceof Prisma.PrismaClientKnownRequestError) {

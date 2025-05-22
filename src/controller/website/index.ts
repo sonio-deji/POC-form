@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import prisma from "../../utils/prisma";
+import { NotBeforeError } from "jsonwebtoken";
+import { NotfoundError } from "../../errors/appError";
 
 const websiteRoute = Router();
 
@@ -142,6 +144,52 @@ websiteRoute.get(
         message: "Website unpublished successfully",
         published: website.published,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+websiteRoute.put(
+  "/changehome/:websiteId",
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { websiteId } = req.params;
+
+    const { homePage } = req.body;
+
+    try {
+      const home = await prisma.page.findUnique({
+        where: {
+          slug_websiteId: {
+            slug: homePage,
+            websiteId,
+          },
+          website: {
+            business: {
+              userId: req.userId,
+            },
+          },
+        },
+      });
+      console.log(home);
+      if (!home) {
+        throw new NotfoundError("url");
+      }
+
+      // console.log(home);
+      await prisma.website.update({
+        where: {
+          id: websiteId,
+          business: {
+            userId: req.userId,
+          },
+        },
+        data: {
+          homePage,
+          lastModfified: new Date(),
+        },
+      });
+      res.json({ message: "Home page changed successfully", homePage: home });
     } catch (error) {
       next(error);
     }

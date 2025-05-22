@@ -7,6 +7,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      businessId?: string;
     }
   }
 }
@@ -34,7 +35,7 @@ export const verifyApiToken = (
     };
 
     req.userId = decoded.userid;
-    // req.businessId = decoded.businessId;
+    req.businessId = decoded.businessId;
     next();
   } catch (error) {
     return res.status(HttpStatusCode.BAD_REQUEST).json({
