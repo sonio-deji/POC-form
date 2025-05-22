@@ -51,7 +51,8 @@ export class NotfoundError extends BaseError {
       `NotfoundError`,
       HttpStatusCode.NOT_FOUND,
       true,
-      `Requested resource cannot be found`
+
+      `${param.length > 0 ? param : "Requested resource cannot be found"}`
     );
   }
 }

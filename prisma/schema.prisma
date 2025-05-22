@@ -37,7 +37,7 @@ model Business {
   website      Website?      @relation("BusinessToWebsite")
   form         Form[]
   invoice      Invoice[]     @relation("BusinessToInvoice")
-  // websiteId    String? @unique
+  Customer     Customer[]
   socialMedia  SocialMedia[]
 }
 
@@ -114,6 +114,10 @@ model Submission {
   formId      Int
   responses   Response[]
   submittedAt DateTime   @default(now())
+
+  customerId      String?
+  customer        Customer? @relation("CustomerSubmissions", fields: [customerId], references: [id])
+  createdCustomer Customer? @relation("CreatedCustomer")
 }
 
 model Response {
@@ -123,6 +127,24 @@ model Response {
   field        Field      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   fieldId      Int
   value        String
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  fullName   String
+  newMessage Boolean  @default(false)
+  email      String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdFromId Int?        @unique
+  createdFrom   Submission? @relation("CreatedCustomer", fields: [createdFromId], references: [id])
+
+  submissions Submission[] @relation("CustomerSubmissions")
+  notes       Notes[]      @relation("CustomerNotes")
+  invoices    Invoice[]    @relation("CustomerInvoices")
 }
 
 model VisitsByBrowser {
@@ -150,7 +172,6 @@ model VisitsByLocation {
 
 model Invoice {
   id          String        @unique @default(cuid())
-  contact     String
   invoiceNo   String        @unique @default(cuid())
   createdAt   DateTime      @default(now())
   dueDate     DateTime
@@ -160,6 +181,9 @@ model Invoice {
   invoiceItem InvoiceItem[]
   businessId  String
   business    Business      @relation(fields: [businessId], references: [id], name: "BusinessToInvoice", onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, name: "CustomerInvoices")
 }
 
 model InvoiceItem {
@@ -189,4 +213,14 @@ model SocialMedia {
   updatedAt DateTime @updatedAt
 
   @@unique([platform, businessId])
+}
+
+model Notes {
+  id         String   @id @default(cuid())
+  title      String
+  content    String?
+  createdAt  DateTime @default(now())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, name: "CustomerNotes")
+  updatedAt  DateTime @updatedAt
 }

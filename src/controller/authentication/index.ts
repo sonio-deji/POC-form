@@ -166,6 +166,12 @@ authRouter.post(
           },
           {
             title: "message",
+            type: "textarea",
+            options: [""],
+            required: true,
+          },
+          {
+            title: "category",
             type: "text",
             options: [""],
             required: true,

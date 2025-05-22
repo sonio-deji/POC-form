@@ -1,5 +1,0 @@
--- AlterTable
-ALTER TABLE "Page" ADD COLUMN     "views" INTEGER NOT NULL DEFAULT 0;
-
--- AlterTable
-ALTER TABLE "Website" ADD COLUMN     "urlVisits" INTEGER NOT NULL DEFAULT 0;
