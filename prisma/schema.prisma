@@ -14,58 +14,75 @@ datasource db {
 }
 
 model User {
-  id            String     @id @default(cuid())
-  email         String     @unique
-  emailVerified Boolean    @default(false)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id            String              @id @default(cuid())
+  email         String              @unique
+  emailVerified Boolean             @default(false)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   password      String
   firstName     String
   lastName      String
   businesses    Business[]
+  passwordToken PasswordResetToken?
 }
 
 model Business {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   businessName String
   location     String
   about        String
+  createdAt    DateTime  @default(now())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  website      Website? @relation("BusinessToWebsite")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  website      Website?  @relation("BusinessToWebsite")
   form         Form[]
+  invoice      Invoice[] @relation("BusinessToInvoice")
   // websiteId    String? @unique
 }
 
 model Website {
-  id          String   @id @default(cuid())
-  name        String?
-  footer      String?
-  header      String?
-  favicon     String?
-  description String?
-  content     String?
-  page        Page[]
-  url         String   @unique()
-  homePage    String   @default("/")
-  businessId  String   @unique
-  published   Boolean  @default(false)
-  urlVisits   Int      @default(0)
-  business    Business @relation(fields: [businessId], references: [id], name: "BusinessToWebsite", onDelete: Cascade)
+  id            String     @id @default(cuid())
+  name          String?
+  footer        String?
+  header        String?
+  favicon       String?
+  description   String?
+  content       String?
+  page          Page[]
+  url           String     @unique()
+  homePage      String     @default("/")
+  businessId    String     @unique
+  published     Boolean    @default(false)
+  urlVisits     Int        @default(0)
+  createdAt     DateTime   @default(now())
+  analytics     Analytics? @relation("analyticsToWebsite")
+  lastModfified DateTime   @default(now())
+  business      Business   @relation(fields: [businessId], references: [id], name: "BusinessToWebsite", onDelete: Cascade)
 }
 
 model Page {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   slug        String
   title       String?
   websiteId   String
   description String?
   label       String?
-  website     Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   content     String?
-  views       Int     @default(0)
+  createdAt   DateTime @default(now())
+  views       Int      @default(0)
 
   @@unique([slug, websiteId])
+}
+
+model Analytics {
+  id               String             @id @unique @default(cuid())
+  // visitsByBrowser  String[]
+  websiteId        String             @unique
+  urlVisits        Int                @default(0)
+  website          Website            @relation(fields: [websiteId], references: [id], name: "analyticsToWebsite", onDelete: Cascade)
+  visitsByLocation VisitsByLocation[] @relation(name: "visitedByLocation")
+  visitsByBrowser  VisitsByBrowser[]  @relation(name: "visitedByBrowser")
 }
 
 model Form {
@@ -105,4 +122,57 @@ model Response {
   field        Field      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   fieldId      Int
   value        String
+}
+
+model VisitsByBrowser {
+  id          String    @id @default(cuid())
+  browser     String
+  count       Int       @default(1)
+  analyticsId String
+  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByBrowser")
+
+  @@unique([browser, analyticsId])
+}
+
+model VisitsByLocation {
+  id          String    @id @default(cuid())
+  country     String
+  region      String
+  timezone    String
+  city        String
+  count       Int       @default(1)
+  analyticsId String
+  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByLocation")
+
+  @@unique([country, region, city, timezone, analyticsId])
+}
+
+model Invoice {
+  id          String        @unique @default(cuid())
+  contact     String
+  invoiceNo   String        @unique @default(cuid())
+  createdAt   DateTime      @default(now())
+  dueDate     DateTime
+  vat         String
+  charges     String
+  status      Int           @default(0)
+  invoiceItem InvoiceItem[]
+  businessId  String
+  business    Business      @relation(fields: [businessId], references: [id], name: "BusinessToInvoice", onDelete: Cascade)
+}
+
+model InvoiceItem {
+  id        String  @id @unique @default(cuid())
+  itemName  String
+  quantity  Int
+  amount    Int
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model PasswordResetToken {
+  token     String   @id
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
 }

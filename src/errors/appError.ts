@@ -47,7 +47,12 @@ export class BadRequestError extends BaseError {
 }
 export class NotfoundError extends BaseError {
   constructor(param: string) {
-    super(`NotfoundError`, HttpStatusCode.NOT_FOUND, true, `${param}`);
+    super(
+      `NotfoundError`,
+      HttpStatusCode.NOT_FOUND,
+      true,
+      `Requested resource cannot be found`
+    );
   }
 }
 

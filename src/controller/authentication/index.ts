@@ -1,7 +1,12 @@
 import { Business, Prisma, User } from "@prisma/client";
 import { Router, Request, Response, NextFunction } from "express";
 import prisma from "../../utils/prisma";
-import { BadRequestError, RequiredParameterError } from "../../errors/appError";
+import {
+  BadRequestError,
+  InvalidParameterError,
+  RequiredParameterError,
+  UnauthorizedError,
+} from "../../errors/appError";
 import { validatePassword } from "../../utils/validator/validatePassword";
 import * as CryptoJs from "crypto-js";
 import * as jwt from "jsonwebtoken";
@@ -202,7 +207,7 @@ authRouter.post(
         });
 
         const accessToken = jwt.sign(
-          { id: userObj.email, userid: userObj.id },
+          { id: userObj.email, userid: userObj.id, businessId: business.id },
           process.env.JWT_SEC,
           {
             expiresIn: "3d",
@@ -333,7 +338,7 @@ authRouter.post(
         });
       }
       const accessToken = jwt.sign(
-        { id: user.email, userid: user.id },
+        { id: user.email, userid: user.id, businessId: user.businesses[0].id },
         process.env.JWT_SEC,
         {
           expiresIn: "3d",
@@ -360,8 +365,66 @@ authRouter.post(
 authRouter.post(
   "/update-password",
   verifyApiToken,
-  (req: Request, res: Response) => {
-    console.log("logging");
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { oldPassword, newPassword, confirmNewPassword } = req.body;
+
+    try {
+      if (!oldPassword) {
+        throw new RequiredParameterError("old password");
+      }
+      if (!newPassword) {
+        throw new RequiredParameterError("new password");
+      }
+      if (!confirmNewPassword) {
+        throw new RequiredParameterError("confirm password");
+      }
+
+      const user = await prisma.user.findUnique({
+        where: {
+          id: req.userId,
+        },
+      });
+
+      const isPasswordValid = await bcryptjs.compare(
+        oldPassword,
+        user.password
+      );
+
+      if (!isPasswordValid) {
+        throw new UnauthorizedError(
+          "Old password does not match what is in our database"
+        );
+      }
+      const validateNewPassword = validatePassword(newPassword);
+      if (!validateNewPassword) {
+        throw new InvalidParameterError(
+          "Make sure password length is more than 6, contains a special charcter and at least an uppercase letter"
+        );
+      }
+      if (newPassword === oldPassword) {
+        throw new InvalidParameterError(
+          "New password and old password are the same"
+        );
+      }
+      if (newPassword !== confirmNewPassword) {
+        throw new InvalidParameterError(
+          "New password and old password do not match"
+        );
+      }
+      const saltRounds = 10;
+      const hashedPassword = await bcryptjs.hash(newPassword, saltRounds);
+      await prisma.user.update({
+        where: {
+          id: req.userId,
+        },
+        data: {
+          password: hashedPassword,
+        },
+      });
+      res.json({ message: "Password reset successful" });
+    } catch (error) {
+      next(error);
+    }
   }
 );
 
