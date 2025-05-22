@@ -43,21 +43,88 @@ export async function createForm(
   return form;
 }
 export async function submitForm(formId: number, responses: any[]) {
-  const submission = await prisma.submission.create({
-    data: {
-      formId,
-      responses: {
-        create: responses.map((response) => ({
-          fieldId: response.fieldId,
-          value: response.value,
-        })),
-      },
-    },
+  const form = await prisma.form.findUnique({
+    where: { id: formId },
     include: {
-      responses: true,
+      fields: true,
     },
   });
-  return submission;
+
+  if (!form) {
+    throw new Error("Form not found");
+  }
+  const nameField = form.fields.find((field) => field.label === "name");
+  if (!nameField) {
+    throw new Error("Name field not found");
+  }
+  const emailField = form.fields.find((field) => field.label === "email");
+  if (!emailField) {
+    throw new Error("Email field not found");
+  }
+  const nameResponse = responses.find(
+    (response) => response.fieldId === nameField.id
+  );
+  const emailResponse = responses.find(
+    (response) => response.fieldId === emailField.id
+  );
+  if (!nameResponse) {
+    throw new Error("Name response not found");
+  }
+  if (!emailResponse) {
+    throw new Error("Email response not found");
+  }
+  if (!nameResponse.value) {
+    throw new Error("Name value is required");
+  }
+  if (!emailResponse.value) {
+    throw new Error("Email value is required");
+  }
+  const existingCustomer = await prisma.customer.findFirst({
+    where: { email: emailResponse.value },
+  });
+
+  const result = await prisma.$transaction(async (tx) => {
+    let customer = existingCustomer;
+
+    if (!customer) {
+      customer = await tx.customer.create({
+        data: {
+          email: emailResponse.value,
+          fullName: nameResponse.value,
+          newMessage: true,
+          businessId: form.businessId, // you may want to pass this in
+        },
+      });
+    }
+
+    const submission = await tx.submission.create({
+      data: {
+        formId,
+        responses: {
+          create: responses.map((response) => ({
+            fieldId: response.fieldId,
+            value: response.value,
+          })),
+        },
+        customerId: customer.id,
+      },
+      include: {
+        responses: true,
+      },
+    });
+
+    await tx.customer.update({
+      where: { id: customer.id },
+      data: {
+        newMessage: true,
+        createdFromId: submission.id,
+      },
+    });
+
+    return submission;
+  });
+
+  return result;
 }
 export async function getFormWithValues(formId: number) {
   const formWithValues = await prisma.form.findUnique({
@@ -81,6 +148,46 @@ export async function getFormWithValues(formId: number) {
   });
 
   return formWithValues;
+}
+
+export async function getFormSubmissions(formId: number) {
+  const submissions = await prisma.submission.findMany({
+    where: { formId },
+    include: {
+      responses: {
+        select: {
+          id: true,
+          value: true,
+          field: {
+            select: {
+              label: true,
+              type: true,
+              id: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const formattedSubmissions = submissions.map((submissions) => {
+    const object: any = {
+      response: {},
+    };
+    object.id = submissions.id;
+    object.formId = submissions.formId;
+    object.submittedAt = submissions.submittedAt;
+    submissions.responses.forEach((response) => {
+      console.log(response.field.label, response.value, "response");
+      object.response[response.field.label] = response.value || "";
+      // object.response[response.field.label].value = response.value;
+      // object.response[response.field.label].label = response.field.label;
+    });
+    console.log(object, "object");
+    return object;
+  });
+
+  return formattedSubmissions;
 }
 export async function updateForm(
   formId: number,

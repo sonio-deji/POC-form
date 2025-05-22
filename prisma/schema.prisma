@@ -26,15 +26,16 @@ model User {
 }
 
 model Business {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   businessName String
   location     String
   about        String
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  website      Website? @relation("BusinessToWebsite")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  website      Website?   @relation("BusinessToWebsite")
   form         Form[]
   // websiteId    String? @unique
+  Customer     Customer[]
 }
 
 model Website {
@@ -96,6 +97,10 @@ model Submission {
   formId      Int
   responses   Response[]
   submittedAt DateTime   @default(now())
+
+  customerId String?
+  customer   Customer? @relation("CustomerSubmissions", fields: [customerId], references: [id])
+  createdCustomer Customer? @relation("CreatedCustomer")
 }
 
 model Response {
@@ -105,4 +110,20 @@ model Response {
   field        Field      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   fieldId      Int
   value        String
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  fullName   String
+  newMessage Boolean  @default(false)
+  email      String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdFromId Int?        @unique
+  createdFrom   Submission? @relation("CreatedCustomer", fields: [createdFromId], references: [id])
+
+  submissions Submission[] @relation("CustomerSubmissions")
 }

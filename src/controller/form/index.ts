@@ -1,8 +1,10 @@
+import { RequiredParameterError } from "../../errors/appError";
 import {
   addFormField,
   createForm,
   deleteFormField,
   getForm,
+  getFormSubmissions,
   getFormWithValues,
   submitForm,
 } from "./formActions";
@@ -16,11 +18,20 @@ formRouter.post(`/create/:pageId`, async (req, res) => {
   const result = await createForm(title, description, fields, pageId);
   res.json(result);
 });
-formRouter.post(`/submit`, async (req, res) => {
+formRouter.post(`/submit`, async (req, res, next) => {
   const { formId, responses } = req.body;
-
-  const result = await submitForm(Number(formId), responses);
-  res.json(result);
+  try {
+    if (!formId) {
+      throw new RequiredParameterError("formId");
+    }
+    if (!responses) {
+      throw new RequiredParameterError("responses");
+    }
+    const result = await submitForm(Number(formId), responses);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
 });
 
 formRouter.get(`/formvalues`, async (req, res) => {
@@ -29,6 +40,13 @@ formRouter.get(`/formvalues`, async (req, res) => {
   const result = await getFormWithValues(formId);
   res.json(result);
 });
+
+formRouter.get(`/submissions/:formId`, async (req, res) => {
+  const formId = parseInt(req.params.formId, 10);
+  const result = await getFormSubmissions(formId);
+  res.json(result);
+});
+
 formRouter.get(`/getform`, async (req, res) => {
   const { formId } = req.body;
 
