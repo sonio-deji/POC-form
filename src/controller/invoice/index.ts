@@ -15,12 +15,9 @@ invoiceRoutes.post(
       if (!items) {
         throw new RequiredParameterError("items");
       }
-      const { contact, dueDate, vat, charges } = invoice;
+      const { dueDate, vat, charges, customerId } = invoice;
       if (!charges) {
         throw new RequiredParameterError("charges");
-      }
-      if (!contact) {
-        throw new RequiredParameterError("contact");
       }
       if (!vat) {
         throw new RequiredParameterError("vat");
@@ -28,14 +25,22 @@ invoiceRoutes.post(
       if (!dueDate) {
         throw new RequiredParameterError("dueDate");
       }
+      if(!customerId){
+        throw new RequiredParameterError("customerId");
+      }
+
+      const businessId = req.params.businessId;
+      if (!businessId) {
+        throw new RequiredParameterError("businessId");
+      }      
 
       const invoiceData = await prisma.invoice.create({
         data: {
-          contact,
           dueDate,
           businessId: req.params.businessId,
           vat,
           charges,
+          customerId,
           invoiceItem: {
             create: items.map((item: any) => ({
               itemName: item.itemName,

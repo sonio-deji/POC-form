@@ -1,3 +1,4 @@
+import { BadRequestError } from "../../errors/appError";
 import prisma from "../../utils/prisma";
 
 export interface IFields {
@@ -42,48 +43,54 @@ export async function createForm(
   });
   return form;
 }
+
+
 export async function submitForm(formId: number, responses: any[]) {
   const form = await prisma.form.findUnique({
     where: { id: formId },
-    include: {
-      fields: true,
-    },
+    include: { fields: true },
   });
 
   if (!form) {
-    throw new Error("Form not found");
+    throw new BadRequestError("Form not found");
   }
-  const nameField = form.fields.find((field) => field.label === "name");
-  if (!nameField) {
-    throw new Error("Name field not found");
+
+  const validFieldIds = new Set(form.fields.map((f) => f.id));
+  const invalidFieldIds = responses
+    .map((r) => r.fieldId)
+    .filter((id) => !validFieldIds.has(id));
+
+  if (invalidFieldIds.length > 0) {
+    throw new BadRequestError(
+      `Invalid fieldId(s) in responses: ${invalidFieldIds.join(", ")}`
+    );
   }
-  const emailField = form.fields.find((field) => field.label === "email");
-  if (!emailField) {
-    throw new Error("Email field not found");
+
+  const nameField = form.fields.find((f) => f.label.toLowerCase() === "name");
+  const emailField = form.fields.find((f) => f.label.toLowerCase() === "email");
+
+  if (!nameField || !emailField) {
+    throw new BadRequestError(
+      "Required fields 'name' and/or 'email' not found in the form"
+    );
   }
-  const nameResponse = responses.find(
-    (response) => response.fieldId === nameField.id
-  );
-  const emailResponse = responses.find(
-    (response) => response.fieldId === emailField.id
-  );
-  if (!nameResponse) {
-    throw new Error("Name response not found");
+
+  const nameResponse = responses.find((r) => r.fieldId === nameField.id);
+  const emailResponse = responses.find((r) => r.fieldId === emailField.id);
+
+  if (!nameResponse?.value) {
+    throw new BadRequestError("Name value is required");
   }
-  if (!emailResponse) {
-    throw new Error("Email response not found");
+
+  if (!emailResponse?.value) {
+    throw new BadRequestError("Email value is required");
   }
-  if (!nameResponse.value) {
-    throw new Error("Name value is required");
-  }
-  if (!emailResponse.value) {
-    throw new Error("Email value is required");
-  }
+
   const existingCustomer = await prisma.customer.findFirst({
     where: { email: emailResponse.value },
   });
 
-  const result = await prisma.$transaction(async (tx) => {
+  const submission = await prisma.$transaction(async (tx) => {
     let customer = existingCustomer;
 
     if (!customer) {
@@ -92,7 +99,7 @@ export async function submitForm(formId: number, responses: any[]) {
           email: emailResponse.value,
           fullName: nameResponse.value,
           newMessage: true,
-          businessId: form.businessId, // you may want to pass this in
+          businessId: form.businessId,
         },
       });
     }
@@ -101,31 +108,32 @@ export async function submitForm(formId: number, responses: any[]) {
       data: {
         formId,
         responses: {
-          create: responses.map((response) => ({
-            fieldId: response.fieldId,
-            value: response.value,
+          create: responses.map(({ fieldId, value }) => ({
+            fieldId,
+            value,
           })),
         },
         customerId: customer.id,
       },
-      include: {
-        responses: true,
-      },
+      include: { responses: true },
     });
+
+    
 
     await tx.customer.update({
       where: { id: customer.id },
       data: {
         newMessage: true,
-        createdFromId: submission.id,
+        createdFromId: existingCustomer?.createdFromId ?? submission.id,
       },
     });
 
     return submission;
   });
 
-  return result;
+  return submission;
 }
+
 export async function getFormWithValues(formId: number) {
   const formWithValues = await prisma.form.findUnique({
     where: { id: formId },
@@ -180,10 +188,7 @@ export async function getFormSubmissions(formId: number) {
     submissions.responses.forEach((response) => {
       console.log(response.field.label, response.value, "response");
       object.response[response.field.label] = response.value || "";
-      // object.response[response.field.label].value = response.value;
-      // object.response[response.field.label].label = response.field.label;
     });
-    console.log(object, "object");
     return object;
   });
 
