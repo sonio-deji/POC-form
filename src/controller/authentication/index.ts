@@ -15,6 +15,7 @@ import { verifyApiToken } from "../../middleware/verifyToken";
 import { validateEmail } from "../../utils/validator/validateEmail";
 import { handlePrismaError } from "../../utils/PrimaErrorHandler";
 import { generateUniqueUrl } from "../../utils/generateUniqueUrl";
+import { fields } from "../../utils/lib";
 
 const authRouter = Router();
 /**
@@ -120,118 +121,168 @@ authRouter.post(
 
       const saltRounds = 10;
       const hashedPassword = await bcryptjs.hash(userObj.password, saltRounds);
-      const transactionRes = await prisma.$transaction(async (prisma) => {
-        const user = await prisma.user.create({
-          data: {
-            ...userObj,
-            password: hashedPassword,
-          },
+      // const transactionRes = await prisma.$transaction(async (prisma) => {
 
-          select: {
-            email: true,
-            emailVerified: true,
+      //   // const business = await prisma.business.create({
+      //   //   data: {
+      //   //     businessName: businessDetails.businessName,
+      //   //     location: businessDetails.location,
+      //   //     about: businessDetails.about,
+      //   //     userId: user.id,
+      //   //   },
+      //   //   select: {
+      //   //     businessName: true,
+      //   //     about: true,
+      //   //     location: true,
+      //   //     id: true,
+      //   //   },
+      //   // });
 
-            firstName: true,
-            lastName: true,
-            id: true,
-          },
-        });
-        const business = await prisma.business.create({
-          data: {
-            businessName: businessDetails.businessName,
-            location: businessDetails.location,
-            about: businessDetails.about,
-            userId: user.id,
-          },
-          select: {
-            businessName: true,
-            about: true,
-            location: true,
-            id: true,
-          },
-        });
+      //   // const fields = [
+      //   //   {
+      //   //     title: "email",
+      //   //     type: "email",
+      //   //     options: [""],
+      //   //     required: true,
+      //   //   },
+      //   //   {
+      //   //     title: "name",
+      //   //     type: "text",
+      //   //     options: [""],
+      //   //     required: true,
+      //   //   },
+      //   //   {
+      //   //     title: "message",
+      //   //     type: "textarea",
+      //   //     options: [""],
+      //   //     required: true,
+      //   //   },
+      //   //   {
+      //   //     title: "category",
+      //   //     type: "text",
+      //   //     options: [""],
+      //   //     required: true,
+      //   //   },
+      //   // ];
+      //   // const url = await generateUniqueUrl(
+      //   //   business.businessName.toLowerCase().replace(/\s+/g, "-")
+      //   // );
+      //   // const website = await prisma.website.create({
+      //   //   data: {
+      //   //     name: "new website",
+      //   //     businessId: business.id,
+      //   //     url: `${url}`,
+      //   //   },
+      //   // });
 
-        const fields = [
-          {
-            title: "email",
-            type: "email",
-            options: [""],
-            required: true,
-          },
-          {
-            title: "name",
-            type: "text",
-            options: [""],
-            required: true,
-          },
-          {
-            title: "message",
-            type: "textarea",
-            options: [""],
-            required: true,
-          },
-          {
-            title: "category",
-            type: "text",
-            options: [""],
-            required: true,
-          },
-        ];
-        const url = await generateUniqueUrl(
-          business.businessName.toLowerCase().replace(/\s+/g, "-")
-        );
-        const website = await prisma.website.create({
-          data: {
-            name: "new website",
-            businessId: business.id,
-            url: `${url}`,
-          },
-        });
+      //   // await prisma.page.create({
+      //   //   data: {
+      //   //     slug: "/",
+      //   //     title: "Home",
+      //   //     label: "Home",
+      //   //     websiteId: website.id,
+      //   //   },
+      //   // });
 
-        await prisma.page.create({
-          data: {
-            slug: "/",
-            title: "Home",
-            label: "Home",
-            websiteId: website.id,
-          },
-        });
+      //   // await prisma.form.create({
+      //   //   data: {
+      //   //     businessId: business.id,
+      //   //     title: "new form",
+      //   //     fields: {
+      //   //       create: fields.map((field) => ({
+      //   //         label: field.title,
+      //   //         type: field.type,
+      //   //         required: field.required,
+      //   //         options: field.options,
+      //   //       })),
+      //   //     },
+      //   //   },
+      //   // });
 
-        await prisma.form.create({
-          data: {
-            businessId: business.id,
-            title: "new form",
-            fields: {
-              create: fields.map((field) => ({
-                label: field.title,
-                type: field.type,
-                required: field.required,
-                options: field.options,
-              })),
+      //   const accessToken = jwt.sign(
+      //     { id: userObj.email, userid: userObj.id, businessId: user.businesses[0].id },
+      //     process.env.JWT_SEC,
+      //     {
+      //       expiresIn: "3d",
+      //     }
+      //   );
+      //   // return {
+      //   //   user: {
+      //   //     ...user,
+      //   //     id: undefined,
+      //   //   },
+      //   //   business: { ...business, id: undefined },
+      //   //   token: accessToken,
+      //   // };
+      // });
+
+      const url = await generateUniqueUrl(
+        businessDetails.businessName.toLowerCase().replace(/\s+/g, "-")
+      );
+      const user = await prisma.user.create({
+        data: {
+          ...userObj,
+          password: hashedPassword,
+          businesses: {
+            create: {
+              businessName: businessDetails.businessName,
+              location: businessDetails.location,
+              about: businessDetails.about,
+
+              form: {
+                create: {
+                  // businessId: business.id,
+                  title: "new form",
+                  fields: {
+                    create: fields.map((field) => ({
+                      label: field.title,
+                      type: field.type,
+                      required: field.required,
+                      options: field.options,
+                    })),
+                  },
+                },
+              },
+              website: {
+                create: {
+                  name: "new website",
+                  url: `${url}`,
+                  page: {
+                    create: {
+                      slug: "/",
+                      title: "Home",
+                      label: "Home",
+                      // websiteId: website.id,
+                    },
+                  },
+                },
+              },
             },
           },
-        });
+        },
 
-        const accessToken = jwt.sign(
-          { id: userObj.email, userid: userObj.id, businessId: business.id },
-          process.env.JWT_SEC,
-          {
-            expiresIn: "3d",
-          }
-        );
-        return {
-          user: {
-            ...user,
-            id: undefined,
-          },
-          business: { ...business, id: undefined },
-          token: accessToken,
-        };
+        select: {
+          email: true,
+          emailVerified: true,
+
+          firstName: true,
+          lastName: true,
+          id: true,
+          businesses: true,
+        },
       });
-
+      const accessToken = jwt.sign(
+        { userid: user.id, businessId: user.businesses[0].id },
+        process.env.JWT_SEC,
+        {
+          expiresIn: "3d",
+        }
+      );
+      const { id, businesses, emailVerified, ...filteredUser } = user;
       return res.status(200).json({
         message: "User created successfully",
-        ...transactionRes,
+        user: filteredUser,
+        token: accessToken,
       });
     } catch (error) {
       // return handlePrismaError(error, res);
@@ -344,7 +395,7 @@ authRouter.post(
         });
       }
       const accessToken = jwt.sign(
-        { id: user.email, userid: user.id, businessId: user.businesses[0].id },
+        { userid: user.id, businessId: user.businesses[0].id },
         process.env.JWT_SEC,
         {
           expiresIn: "3d",

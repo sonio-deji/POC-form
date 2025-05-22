@@ -6,12 +6,13 @@ import { NotfoundError } from "../../errors/appError";
 const websiteRoute = Router();
 
 websiteRoute.get(
-  "/:businessId",
+  "/",
   async (req: Request, res: Response, next: NextFunction) => {
+    console.log(req.businessId);
     try {
       const website = await prisma.website.findUnique({
         where: {
-          businessId: req.params.businessId,
+          businessId: req.businessId,
         },
         select: {
           page: true,
@@ -171,7 +172,6 @@ websiteRoute.put(
           },
         },
       });
-      console.log(home);
       if (!home) {
         throw new NotfoundError("url");
       }
@@ -186,7 +186,6 @@ websiteRoute.put(
         },
         data: {
           homePage,
-          lastModfified: new Date(),
         },
       });
       res.json({ message: "Home page changed successfully", homePage: home });
@@ -200,32 +199,57 @@ websiteRoute.get(
   "/websitedetails/websitedashboard",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const websiteDashboard = await prisma.website.findUnique({
-        where: {
-          businessId: req.businessId,
-        },
-        select: {
-          published: true,
-          header: true,
-          footer: true,
-          url: true,
-        },
+      const transactionRes = await prisma.$transaction(async () => {
+        const websiteDashboard = await prisma.website.findUnique({
+          where: {
+            businessId: req.businessId,
+          },
+          select: {
+            published: true,
+            header: true,
+            footer: true,
+            url: true,
+          },
+        });
+
+        const business = await prisma.business.findUnique({
+          where: {
+            id: req.businessId,
+          },
+          include: {
+            socialMedia: true,
+          },
+        });
+
+        return { websiteDashboard, business };
       });
 
+      // const {published,  ...websiteDashboard} = transactionRes.websiteDashboard
       res.json({
         message: "successful",
         websiteDashboard: {
-          ...websiteDashboard,
-          hasWebsite: !!websiteDashboard.header,
-          hasCustomDomain: !websiteDashboard.url.endsWith("fluttersuite.com"),
+          ...transactionRes.websiteDashboard,
+          hasWebsite: !!transactionRes.websiteDashboard.header,
+          hasCustomDomain:
+            !transactionRes.websiteDashboard.url.endsWith("fluttersuite.com"),
           url: undefined,
           header: undefined,
           footer: undefined,
+          socialMedia: undefined,
+          hasSocials: transactionRes.business.socialMedia.length > 0,
         },
       });
     } catch (error) {
       next(error);
     }
+  }
+);
+
+websiteRoute.post(
+  "/changewebsiteurl",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+    } catch (error) {}
   }
 );
 export default websiteRoute;

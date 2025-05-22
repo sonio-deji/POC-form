@@ -8,6 +8,7 @@ declare global {
     interface Request {
       userId?: string;
       businessId?: string;
+      id?: string;
     }
   }
 }
@@ -34,6 +35,7 @@ export const verifyApiToken = (
       businessId: string;
     };
 
+    console.log(decoded);
     req.userId = decoded.userid;
     req.businessId = decoded.businessId;
     next();

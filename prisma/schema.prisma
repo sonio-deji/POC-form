@@ -57,8 +57,9 @@ model Website {
   urlVisits     Int        @default(0)
   createdAt     DateTime   @default(now())
   analytics     Analytics? @relation("analyticsToWebsite")
-  lastModfified DateTime   @default(now())
+  lastModfified DateTime   @updatedAt
   business      Business   @relation(fields: [businessId], references: [id], name: "BusinessToWebsite", onDelete: Cascade)
+  // socialMedia   SocialMedia[]
 }
 
 model Page {
@@ -224,3 +225,9 @@ model Notes {
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, name: "CustomerNotes")
   updatedAt  DateTime @updatedAt
 }
+
+// model ActiveBusiness {
+//   id String @id @unique
+//   businessId String
+//   business Business @relation(fields: [businessId], references: [id] )
+// }
