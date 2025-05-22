@@ -27,17 +27,18 @@ model User {
 }
 
 model Business {
-  id           String    @id @default(cuid())
+  id           String        @id @default(cuid())
   businessName String
   location     String
   about        String
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime      @default(now())
   userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  website      Website?  @relation("BusinessToWebsite")
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  website      Website?      @relation("BusinessToWebsite")
   form         Form[]
-  invoice      Invoice[] @relation("BusinessToInvoice")
+  invoice      Invoice[]     @relation("BusinessToInvoice")
   // websiteId    String? @unique
+  socialMedia  SocialMedia[]
 }
 
 model Website {
@@ -175,4 +176,17 @@ model PasswordResetToken {
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
+}
+
+model SocialMedia {
+  id         String   @id @default(cuid())
+  platform   String
+  url        String
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([platform, businessId])
 }

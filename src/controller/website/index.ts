@@ -196,4 +196,36 @@ websiteRoute.put(
   }
 );
 
+websiteRoute.get(
+  "/websitedetails/websitedashboard",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const websiteDashboard = await prisma.website.findUnique({
+        where: {
+          businessId: req.businessId,
+        },
+        select: {
+          published: true,
+          header: true,
+          footer: true,
+          url: true,
+        },
+      });
+
+      res.json({
+        message: "successful",
+        websiteDashboard: {
+          ...websiteDashboard,
+          hasWebsite: !!websiteDashboard.header,
+          hasCustomDomain: !websiteDashboard.url.endsWith("fluttersuite.com"),
+          url: undefined,
+          header: undefined,
+          footer: undefined,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 export default websiteRoute;
