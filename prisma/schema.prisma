@@ -14,31 +14,42 @@ datasource db {
 }
 
 model User {
-  id            String              @id @default(cuid())
-  email         String              @unique
-  emailVerified Boolean             @default(false)
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  password      String
-  firstName     String
-  lastName      String
-  businesses    Business[]
-  passwordToken PasswordResetToken?
+  id               String              @id @default(cuid())
+  email            String              @unique
+  emailVerified    Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  password         String
+  firstName        String
+  lastName         String
+  businesses       Business[]
+  passwordToken    PasswordResetToken?
+  activeBusinessId String?             @unique
+  activeBusiness   Business?           @relation("UserActiveBusiness", fields: [activeBusinessId], references: [id])
 }
 
 model Business {
-  id           String        @id @default(cuid())
-  businessName String
-  location     String
-  about        String
-  createdAt    DateTime      @default(now())
-  userId       String
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  website      Website?      @relation("BusinessToWebsite")
-  form         Form[]
-  invoice      Invoice[]     @relation("BusinessToInvoice")
-  Customer     Customer[]
-  socialMedia  SocialMedia[]
+  id            String        @id @default(cuid())
+  businessName  String
+  location      String
+  about         String
+  createdAt     DateTime      @default(now())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  website       Website?      @relation("BusinessToWebsite")
+  form          Form[]
+  invoice       Invoice[]     @relation("BusinessToInvoice")
+  Customer      Customer[]
+  socialMedia   SocialMedia[]
+  businessEmail String?
+
+  addressLineOne String?
+  addressLineTwo String?
+  country        String?
+  state          String?
+  city           String?
+  postalCode     String?
+  activeForUser  User?   @relation("UserActiveBusiness") // reverse of activeBusiness
 }
 
 model Website {

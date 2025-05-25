@@ -8,6 +8,7 @@ CREATE TABLE "User" (
     "password" TEXT NOT NULL,
     "firstName" TEXT NOT NULL,
     "lastName" TEXT NOT NULL,
+    "activeBusinessId" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -39,7 +40,7 @@ CREATE TABLE "Website" (
     "published" BOOLEAN NOT NULL DEFAULT false,
     "urlVisits" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "lastModfified" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastModfified" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Website_pkey" PRIMARY KEY ("id")
 );
@@ -182,6 +183,18 @@ CREATE TABLE "PasswordResetToken" (
 );
 
 -- CreateTable
+CREATE TABLE "SocialMedia" (
+    "id" TEXT NOT NULL,
+    "platform" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "businessId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SocialMedia_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Notes" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
@@ -195,6 +208,9 @@ CREATE TABLE "Notes" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_activeBusinessId_key" ON "User"("activeBusinessId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Website_url_key" ON "Website"("url");
@@ -234,6 +250,12 @@ CREATE UNIQUE INDEX "InvoiceItem_id_key" ON "InvoiceItem"("id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PasswordResetToken_userId_key" ON "PasswordResetToken"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SocialMedia_platform_businessId_key" ON "SocialMedia"("platform", "businessId");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_activeBusinessId_fkey" FOREIGN KEY ("activeBusinessId") REFERENCES "Business"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Business" ADD CONSTRAINT "Business_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -288,6 +310,9 @@ ALTER TABLE "InvoiceItem" ADD CONSTRAINT "InvoiceItem_invoiceId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SocialMedia" ADD CONSTRAINT "SocialMedia_businessId_fkey" FOREIGN KEY ("businessId") REFERENCES "Business"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Notes" ADD CONSTRAINT "Notes_customerId_fkey" FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE CASCADE ON UPDATE CASCADE;

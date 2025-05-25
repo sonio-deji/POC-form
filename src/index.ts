@@ -1,6 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import express from "express";
-import authRouter from "./controller/authentication";
 import * as dotenv from "dotenv";
 import { Application, NextFunction, Request, Response } from "express";
 import {
@@ -67,7 +66,7 @@ app.use(
   })
 );
 
-app.use(routes)
+app.use(routes);
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   // Handle specific Prisma errors

@@ -271,13 +271,15 @@ authRouter.post(
           businesses: true,
         },
       });
-      const accessToken = jwt.sign(
-        { userid: user.id, businessId: user.businesses[0].id },
-        process.env.JWT_SEC,
-        {
-          expiresIn: "3d",
-        }
-      );
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          activeBusinessId: user.businesses[0].id,
+        },
+      });
+      const accessToken = jwt.sign({ userid: user.id }, process.env.JWT_SEC, {
+        expiresIn: "3d",
+      });
       const { id, businesses, emailVerified, ...filteredUser } = user;
       return res.status(200).json({
         message: "User created successfully",
@@ -394,13 +396,9 @@ authRouter.post(
           message: "Username or password incorrect",
         });
       }
-      const accessToken = jwt.sign(
-        { userid: user.id, businessId: user.businesses[0].id },
-        process.env.JWT_SEC,
-        {
-          expiresIn: "3d",
-        }
-      );
+      const accessToken = jwt.sign({ userid: user.id }, process.env.JWT_SEC, {
+        expiresIn: "3d",
+      });
       return res.status(200).json({
         message: "login successful",
         data: {

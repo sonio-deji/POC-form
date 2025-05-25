@@ -17,7 +17,7 @@ const router = Router();
 
 router.use("/api/user", authRouter);
 
-router.use("/api/form", verifyApiToken, formRouter);
+router.use("/api/form", verifyApiToken, checkEmailVerified, formRouter);
 
 router.use("/api/business", verifyApiToken, checkEmailVerified, businessRouter);
 

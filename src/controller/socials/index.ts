@@ -10,7 +10,13 @@ socialMediaRoutes.get(
     try {
       const items = await prisma.socialMedia.findMany({
         where: {
-          businessId: req.businessId,
+          business: {
+            user: {
+              activeBusiness: {
+                userId: req.userId,
+              },
+            },
+          },
         },
         select: {
           platform: true,
@@ -38,9 +44,14 @@ socialMediaRoutes.post(
       if (!url) {
         throw new RequiredParameterError("url");
       }
+      const user = await prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { activeBusinessId: true },
+      });
+
       const item = await prisma.socialMedia.create({
         data: {
-          businessId: req.businessId,
+          businessId: user.activeBusinessId,
           platform,
           url,
         },
@@ -64,11 +75,16 @@ socialMediaRoutes.post(
         throw new RequiredParameterError("platform");
       }
 
+      const user = await prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { activeBusinessId: true },
+      });
+
       const item = await prisma.socialMedia.createMany({
         data: items.map((link: { platform: string; url: string }) => ({
           platform: link.platform,
           url: link.url,
-          businessId: req.businessId,
+          businessId: user.activeBusinessId,
         })),
         skipDuplicates: true,
       });

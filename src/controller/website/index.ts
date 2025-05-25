@@ -8,11 +8,17 @@ const websiteRoute = Router();
 websiteRoute.get(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log(req.businessId);
     try {
-      const website = await prisma.website.findUnique({
+      const website = await prisma.website.findFirst({
         where: {
-          businessId: req.businessId,
+          business: {
+            user: {
+              activeBusiness: {
+                userId: req.userId,
+              },
+              id: req.id,
+            },
+          },
         },
         select: {
           page: true,
@@ -200,9 +206,16 @@ websiteRoute.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const transactionRes = await prisma.$transaction(async () => {
-        const websiteDashboard = await prisma.website.findUnique({
+        const websiteDashboard = await prisma.website.findFirst({
           where: {
-            businessId: req.businessId,
+            // businessId: req.businessId,
+            business: {
+              user: {
+                activeBusiness: {
+                  userId: req.userId,
+                },
+              },
+            },
           },
           select: {
             published: true,

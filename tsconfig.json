@@ -10,6 +10,7 @@
     "skipLibCheck": true,
     "sourceMap": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "rootDir": "./src"
   }
 }

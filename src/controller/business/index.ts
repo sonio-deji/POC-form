@@ -105,26 +105,19 @@ businessRouter.get(
   async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.userId;
     try {
-      const businessDetails = await prisma.business.findUnique({
-        where: {
-          id: req.businessId,
-          user: {
-            id: userId,
-          },
-          // website: {
-          //   business: {
-          //     userId,
-          //   },
-          // },
-        },
+      const businessDetails = await prisma.user.findUnique({
+        where: { id: userId },
         select: {
-          about: true,
-          location: true,
-          businessName: true,
-          id: true,
+          activeBusiness: {
+            select: {
+              id: true,
+              businessName: true,
+              about: true,
+              location: true,
+            },
+          },
         },
       });
-
       res.json({ message: "Business retrieved successfully", businessDetails });
     } catch (error) {
       // handlePrismaError(error, res);
@@ -192,17 +185,23 @@ businessRouter.post(
   "/switchbusiness",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const business = await prisma.business.findUnique({
+      const business = await prisma.user.update({
         where: {
-          userId: req.userId,
-          id: req.body.businessId,
+          id: req.userId,
+          // id: req.body.businessId,
+        },
+        data: {
+          activeBusinessId: req.body.businessId,
+        },
+        include: {
+          activeBusiness: true,
         },
       });
-      if (!business) {
-        return res.status(403).json({ message: "Not authorized" });
-      }
-      req.businessId = business.id;
-      res.json({ message: "business switched", business });
+
+      res.json({
+        message: "business switched",
+        business: business.activeBusiness,
+      });
     } catch (error) {
       next(error);
     }

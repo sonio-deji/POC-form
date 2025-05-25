@@ -82,7 +82,7 @@ publicWebsite.get(
       const ua = parser.UAParser(req.headers["user-agent"]).browser;
       const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
 
-      const location = lookup.lookup("138.91.173.34" as string);
+      const location = lookup.lookup(ip as string);
       const { country, region, city, timezone } = location;
       await prisma.$transaction(async (tx) => {
         // Upsert analytics
