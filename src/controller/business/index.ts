@@ -118,7 +118,11 @@ businessRouter.get(
           },
         },
       });
-      res.json({ message: "Business retrieved successfully", businessDetails });
+      console.log(businessDetails);
+      res.json({
+        message: "Business retrieved successfully",
+        businessDetails: businessDetails.activeBusiness,
+      });
     } catch (error) {
       // handlePrismaError(error, res);
       next(error);

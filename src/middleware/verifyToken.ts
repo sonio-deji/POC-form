@@ -34,7 +34,7 @@ export const verifyApiToken = (
       userid: string;
     };
 
-    console.log(decoded);
+    // console.log(decoded);
     req.userId = decoded.userid;
     next();
   } catch (error) {

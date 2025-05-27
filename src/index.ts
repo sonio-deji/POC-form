@@ -13,13 +13,13 @@ import {
 import swaggerjsdocs from "swagger-jsdoc";
 import swaggerui from "swagger-ui-express";
 import { handlePrismaError } from "./utils/PrimaErrorHandler";
-
+import cors from "cors";
 import routes from "./routes/routes";
 
 dotenv.config();
 const PORT = process.env.PORT || 5000;
 const app = express();
-
+app.use(cors());
 const options: swaggerjsdocs.Options = {
   definition: {
     openapi: "3.0.0",

@@ -14,18 +14,20 @@ datasource db {
 }
 
 model User {
-  id               String              @id @default(cuid())
-  email            String              @unique
-  emailVerified    Boolean             @default(false)
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  password         String
-  firstName        String
-  lastName         String
-  businesses       Business[]
-  passwordToken    PasswordResetToken?
-  activeBusinessId String?             @unique
-  activeBusiness   Business?           @relation("UserActiveBusiness", fields: [activeBusinessId], references: [id])
+  id                String                  @id @default(cuid())
+  email             String                  @unique
+  emailVerified     Boolean                 @default(false)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  password          String
+  firstName         String
+  lastName          String
+  businesses        Business[]
+  passwordToken     PasswordResetToken?
+  profilePicture    String?
+  activeBusinessId  String?                 @unique
+  activeBusiness    Business?               @relation("UserActiveBusiness", fields: [activeBusinessId], references: [id])
+  emailVerification EmailVerificationToken?
 }
 
 model Business {
@@ -37,7 +39,7 @@ model Business {
   userId        String
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   website       Website?      @relation("BusinessToWebsite")
-  form          Form[]
+  form          Form?         @relation("formToBusiness")
   invoice       Invoice[]     @relation("BusinessToInvoice")
   Customer      Customer[]
   socialMedia   SocialMedia[]
@@ -53,23 +55,26 @@ model Business {
 }
 
 model Website {
-  id            String     @id @default(cuid())
-  name          String?
-  footer        String?
-  header        String?
-  favicon       String?
-  description   String?
-  content       String?
-  page          Page[]
-  url           String     @unique()
-  homePage      String     @default("/")
-  businessId    String     @unique
-  published     Boolean    @default(false)
-  urlVisits     Int        @default(0)
-  createdAt     DateTime   @default(now())
-  analytics     Analytics? @relation("analyticsToWebsite")
-  lastModfified DateTime   @updatedAt
-  business      Business   @relation(fields: [businessId], references: [id], name: "BusinessToWebsite", onDelete: Cascade)
+  id             String     @id @default(cuid())
+  name           String?
+  footer         String?
+  header         String?
+  favicon        String?
+  description    String?
+  content        String?
+  theme          String?
+  dateCreated    DateTime   @default(now())
+  page           Page[]
+  url            String     @unique()
+  homePage       String     @default("/")
+  businessId     String     @unique
+  published      Boolean    @default(false)
+  urlVisits      Int        @default(0)
+  createdAt      DateTime   @default(now())
+  analytics      Analytics? @relation("analyticsToWebsite")
+  lastModified   DateTime   @updatedAt()
+  business       Business   @relation(fields: [businessId], references: [id], name: "BusinessToWebsite", onDelete: Cascade)
+  instagramToken String?
   // socialMedia   SocialMedia[]
 }
 
@@ -84,6 +89,7 @@ model Page {
   content     String?
   createdAt   DateTime @default(now())
   views       Int      @default(0)
+  img         String?
 
   @@unique([slug, websiteId])
 }
@@ -104,9 +110,9 @@ model Form {
   description String?
   fields      Field[]
   submissions Submission[]
-  businessId  String
+  businessId  String       @unique
   createdAt   DateTime     @default(now())
-  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business    Business     @relation(fields: [businessId], references: [id], name: "formToBusiness", onDelete: Cascade)
 }
 
 model Field {
@@ -212,6 +218,12 @@ model PasswordResetToken {
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
+}
+
+model EmailVerificationToken {
+  token  String @id
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model SocialMedia {

@@ -18,3 +18,14 @@ export const fields = [
     required: true,
   },
 ];
+
+export const generateRandomNumber = (length: number) => {
+  if (length <= 0) {
+    throw new Error("Length must be a positive integer");
+  }
+
+  const min = Math.pow(10, length - 1);
+  const max = Math.pow(10, length) - 1;
+
+  return String(Math.floor(Math.random() * (max - min + 1)) + min);
+};

@@ -1,4 +1,4 @@
-import { Business, Prisma, User } from "@prisma/client";
+import { Business, Prisma, User, Website } from "@prisma/client";
 import { Router, Request, Response, NextFunction } from "express";
 import prisma from "../../utils/prisma";
 import {
@@ -15,7 +15,7 @@ import { verifyApiToken } from "../../middleware/verifyToken";
 import { validateEmail } from "../../utils/validator/validateEmail";
 import { handlePrismaError } from "../../utils/PrimaErrorHandler";
 import { generateUniqueUrl } from "../../utils/generateUniqueUrl";
-import { fields } from "../../utils/lib";
+import { fields, generateRandomNumber } from "../../utils/lib";
 
 const authRouter = Router();
 /**
@@ -84,9 +84,11 @@ const authRouter = Router();
 authRouter.post(
   "/register",
   async (req: Request, res: Response, next: NextFunction) => {
-    const userObj: User = req.body.user;
+    const userObj = req.body.user;
     const businessDetails: Business = req.body.businessDetails;
+    const websiteDetails: Website = req.body.websiteDetails;
 
+    // console.log(userObj, businessDetails, websiteDetails);
     try {
       if (!userObj.email) {
         throw new RequiredParameterError("Email");
@@ -94,15 +96,16 @@ authRouter.post(
       if (!userObj.password) {
         throw new RequiredParameterError("Password");
       }
+      if (!userObj.confirmPassword) {
+        throw new RequiredParameterError("Confirm password");
+      }
       if (!userObj.firstName) {
         throw new RequiredParameterError("firstName");
       }
       if (!userObj.lastName) {
         throw new RequiredParameterError("lastName");
       }
-      if (!businessDetails.about) {
-        throw new RequiredParameterError("about business");
-      }
+
       if (!businessDetails.businessName) {
         throw new RequiredParameterError("business name");
       }
@@ -110,9 +113,29 @@ authRouter.post(
         throw new RequiredParameterError("business location");
       }
 
+      if (!websiteDetails.theme) {
+        throw new RequiredParameterError("website theme");
+      }
+      if (!websiteDetails.header) {
+        throw new RequiredParameterError("website header");
+      }
+
+      if (!websiteDetails.footer) {
+        throw new RequiredParameterError("website footer");
+      }
+
+      if (!websiteDetails.content) {
+        throw new RequiredParameterError("website content");
+      }
+
       if (!validateEmail(userObj.email)) {
         throw new BadRequestError(
           `'${userObj.email}' is not a valid email address`
+        );
+      }
+      if (userObj.password !== userObj.confirmPassword) {
+        throw new InvalidParameterError(
+          "password and confirm password do not match"
         );
       }
       if (!validatePassword(userObj.password)) {
@@ -221,13 +244,21 @@ authRouter.post(
       );
       const user = await prisma.user.create({
         data: {
-          ...userObj,
+          // ...userObj,
+          firstName: userObj.firstName,
+          lastName: userObj.lastName,
+          email: userObj.email,
           password: hashedPassword,
+          emailVerification: {
+            create: {
+              token: generateRandomNumber(6),
+            },
+          },
           businesses: {
             create: {
               businessName: businessDetails.businessName,
               location: businessDetails.location,
-              about: businessDetails.about,
+              about: businessDetails.businessName,
 
               form: {
                 create: {
@@ -247,11 +278,16 @@ authRouter.post(
                 create: {
                   name: "new website",
                   url: `${url}`,
+                  header: websiteDetails.header,
+                  footer: websiteDetails.footer,
+                  theme: websiteDetails.theme,
                   page: {
                     create: {
                       slug: "/",
                       title: "Home",
                       label: "Home",
+                      content: websiteDetails.content,
+
                       // websiteId: website.id,
                     },
                   },
@@ -264,7 +300,7 @@ authRouter.post(
         select: {
           email: true,
           emailVerified: true,
-
+          emailVerification: true,
           firstName: true,
           lastName: true,
           id: true,
@@ -280,17 +316,16 @@ authRouter.post(
       const accessToken = jwt.sign({ userid: user.id }, process.env.JWT_SEC, {
         expiresIn: "3d",
       });
+
       const { id, businesses, emailVerified, ...filteredUser } = user;
       return res.status(200).json({
-        message: "User created successfully",
+        message:
+          "User created successfully, please check your email to verify your email",
         user: filteredUser,
         token: accessToken,
       });
     } catch (error) {
-      // return handlePrismaError(error, res);
       next(error);
-      // console.log(error);
-      // res.status(503).send();
     }
   }
 );
@@ -357,7 +392,7 @@ authRouter.post(
 authRouter.post(
   "/login",
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log(req.body);
+    // console.log(req.body);
 
     try {
       if (!req.body.email) {
@@ -377,9 +412,12 @@ authRouter.post(
           lastName: true,
           password: true,
           id: true,
+          profilePicture: true,
           businesses: true,
+          activeBusiness: true,
         },
       });
+      // console.log(user);
 
       if (!user) {
         return res.status(400).json({
@@ -407,6 +445,8 @@ authRouter.post(
             emailVerified: user.emailVerified,
             firstName: user.firstName,
             lastName: user.lastName,
+            profilePicture: user.profilePicture,
+            activeBusiness: user.activeBusiness,
           },
           token: accessToken,
         },
@@ -483,4 +523,36 @@ authRouter.post(
   }
 );
 
+authRouter.post(
+  "/verify-email",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.body.userId) {
+        throw new RequiredParameterError("userId");
+      }
+      if (!req.body.token) {
+        throw new RequiredParameterError("pin");
+      }
+      await prisma.user.update({
+        where: {
+          email: req.body.userId,
+          emailVerification: {
+            token: req.body.token,
+          },
+        },
+        data: {
+          emailVerified: true,
+        },
+      });
+      await prisma.emailVerificationToken.delete({
+        where: {
+          token: req.body.token,
+        },
+      });
+      res.json({ message: "email verified successfully" });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 export default authRouter;

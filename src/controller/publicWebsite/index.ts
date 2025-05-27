@@ -13,7 +13,7 @@ publicWebsite.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { path, url } = req.query;
-      console.log(url);
+      // console.log(url);
       // if (!url) {
       //   throw new RequiredParameterError("Url");
       // }

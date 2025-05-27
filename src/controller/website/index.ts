@@ -4,21 +4,19 @@ import { NotBeforeError } from "jsonwebtoken";
 import { NotfoundError } from "../../errors/appError";
 
 const websiteRoute = Router();
-
 websiteRoute.get(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const website = await prisma.website.findFirst({
         where: {
-          business: {
-            user: {
-              activeBusiness: {
-                userId: req.userId,
-              },
-              id: req.id,
-            },
-          },
+          businessId:
+            (
+              await prisma.user.findUnique({
+                where: { id: req.userId },
+                select: { activeBusinessId: true },
+              })
+            )?.activeBusinessId ?? "",
         },
         select: {
           page: true,
@@ -33,6 +31,7 @@ websiteRoute.get(
           published: true,
           homePage: true,
           businessId: true,
+          theme: true,
           business: {
             select: {
               form: {
@@ -40,6 +39,7 @@ websiteRoute.get(
                   fields: true,
                   title: true,
                   description: true,
+                  id: true,
                 },
               },
             },
@@ -84,17 +84,20 @@ websiteRoute.put(
   }
 );
 websiteRoute.get(
-  "/publish/:websiteId",
+  "/publish/:businessId",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { websiteId } = req.params;
-      console.log(websiteId);
 
       await prisma.website.update({
         where: {
           id: websiteId,
+
           business: {
             userId: req.userId,
+            user: {
+              activeBusinessId: req.params.businessId,
+            },
           },
         },
         data: {
@@ -208,26 +211,33 @@ websiteRoute.get(
       const transactionRes = await prisma.$transaction(async () => {
         const websiteDashboard = await prisma.website.findFirst({
           where: {
-            // businessId: req.businessId,
-            business: {
-              user: {
-                activeBusiness: {
-                  userId: req.userId,
-                },
-              },
-            },
+            businessId:
+              (
+                await prisma.user.findUnique({
+                  where: { id: req.userId },
+                  select: { activeBusinessId: true },
+                })
+              )?.activeBusinessId ?? "",
           },
           select: {
             published: true,
             header: true,
             footer: true,
             url: true,
+            id: true,
+            page: true,
+            homePage: true,
           },
         });
 
-        const business = await prisma.business.findUnique({
+        const business = await prisma.business.findFirst({
           where: {
-            id: req.businessId,
+            user: {
+              id: req.userId,
+              activeBusiness: {
+                userId: req.userId,
+              },
+            },
           },
           include: {
             socialMedia: true,
@@ -238,11 +248,17 @@ websiteRoute.get(
       });
 
       // const {published,  ...websiteDashboard} = transactionRes.websiteDashboard
+
       res.json({
         message: "successful",
         websiteDashboard: {
           ...transactionRes.websiteDashboard,
-          hasWebsite: !!transactionRes.websiteDashboard.header,
+          hasWebsite: transactionRes.websiteDashboard.page.find(
+            (item) =>
+              item.slug || item.id === transactionRes.websiteDashboard.homePage
+          )?.content
+            ? true
+            : false,
           hasCustomDomain:
             !transactionRes.websiteDashboard.url.endsWith("fluttersuite.com"),
           url: undefined,
@@ -250,6 +266,9 @@ websiteRoute.get(
           footer: undefined,
           socialMedia: undefined,
           hasSocials: transactionRes.business.socialMedia.length > 0,
+          homePage: transactionRes.websiteDashboard.page.find(
+            (item) => item.slug === transactionRes.websiteDashboard.homePage
+          ).id,
         },
       });
     } catch (error) {
