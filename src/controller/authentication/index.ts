@@ -15,6 +15,14 @@ import { verifyApiToken } from "../../middleware/verifyToken";
 import { validateEmail } from "../../utils/validator/validateEmail";
 import { handlePrismaError } from "../../utils/PrimaErrorHandler";
 import { generateUniqueUrl } from "../../utils/generateUniqueUrl";
+import { google } from "googleapis";
+import { decrypt, encrypt } from "../../utils/cryptoJs";
+
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  "https://localhost:3000"
+);
 import { fields, generateRandomNumber } from "../../utils/lib";
 
 const authRouter = Router();
@@ -144,100 +152,6 @@ authRouter.post(
 
       const saltRounds = 10;
       const hashedPassword = await bcryptjs.hash(userObj.password, saltRounds);
-      // const transactionRes = await prisma.$transaction(async (prisma) => {
-
-      //   // const business = await prisma.business.create({
-      //   //   data: {
-      //   //     businessName: businessDetails.businessName,
-      //   //     location: businessDetails.location,
-      //   //     about: businessDetails.about,
-      //   //     userId: user.id,
-      //   //   },
-      //   //   select: {
-      //   //     businessName: true,
-      //   //     about: true,
-      //   //     location: true,
-      //   //     id: true,
-      //   //   },
-      //   // });
-
-      //   // const fields = [
-      //   //   {
-      //   //     title: "email",
-      //   //     type: "email",
-      //   //     options: [""],
-      //   //     required: true,
-      //   //   },
-      //   //   {
-      //   //     title: "name",
-      //   //     type: "text",
-      //   //     options: [""],
-      //   //     required: true,
-      //   //   },
-      //   //   {
-      //   //     title: "message",
-      //   //     type: "textarea",
-      //   //     options: [""],
-      //   //     required: true,
-      //   //   },
-      //   //   {
-      //   //     title: "category",
-      //   //     type: "text",
-      //   //     options: [""],
-      //   //     required: true,
-      //   //   },
-      //   // ];
-      //   // const url = await generateUniqueUrl(
-      //   //   business.businessName.toLowerCase().replace(/\s+/g, "-")
-      //   // );
-      //   // const website = await prisma.website.create({
-      //   //   data: {
-      //   //     name: "new website",
-      //   //     businessId: business.id,
-      //   //     url: `${url}`,
-      //   //   },
-      //   // });
-
-      //   // await prisma.page.create({
-      //   //   data: {
-      //   //     slug: "/",
-      //   //     title: "Home",
-      //   //     label: "Home",
-      //   //     websiteId: website.id,
-      //   //   },
-      //   // });
-
-      //   // await prisma.form.create({
-      //   //   data: {
-      //   //     businessId: business.id,
-      //   //     title: "new form",
-      //   //     fields: {
-      //   //       create: fields.map((field) => ({
-      //   //         label: field.title,
-      //   //         type: field.type,
-      //   //         required: field.required,
-      //   //         options: field.options,
-      //   //       })),
-      //   //     },
-      //   //   },
-      //   // });
-
-      //   const accessToken = jwt.sign(
-      //     { id: userObj.email, userid: userObj.id, businessId: user.businesses[0].id },
-      //     process.env.JWT_SEC,
-      //     {
-      //       expiresIn: "3d",
-      //     }
-      //   );
-      //   // return {
-      //   //   user: {
-      //   //     ...user,
-      //   //     id: undefined,
-      //   //   },
-      //   //   business: { ...business, id: undefined },
-      //   //   token: accessToken,
-      //   // };
-      // });
 
       const url = await generateUniqueUrl(
         businessDetails.businessName.toLowerCase().replace(/\s+/g, "-")
@@ -270,6 +184,7 @@ authRouter.post(
                       type: field.type,
                       required: field.required,
                       options: field.options,
+                      placeholder: field.placeholder
                     })),
                   },
                 },
@@ -283,7 +198,7 @@ authRouter.post(
                   theme: websiteDetails.theme,
                   page: {
                     create: {
-                      slug: "home",
+                      slug: "/",
                       title: "Home",
                       label: "Home",
                       content: websiteDetails.content,
@@ -314,7 +229,7 @@ authRouter.post(
         },
       });
       const accessToken = jwt.sign({ userid: user.id }, process.env.JWT_SEC, {
-        expiresIn: "1h",
+        expiresIn: "3d",
       });
 
       const { id, businesses, emailVerified, ...filteredUser } = user;
@@ -414,28 +329,11 @@ authRouter.post(
           id: true,
           profilePicture: true,
           businesses: true,
-          activeBusiness: {
-            select: {
-              website: {
-                select: {
-                  id: true,
-                },
-              },
-              about: true,
-              addressLineOne: true,
-              addressLineTwo: true,
-              businessEmail: true,
-              businessName: true,
-              city: true,
-              country: true,
-              id: true,
-              location: true,
-              postalCode: true,
-              state: true,
-            },
-          },
+          activeBusiness: true,
+          linkedEmailAccount: true,
         },
       });
+      // console.log(user);
       // console.log(user);
 
       if (!user) {
@@ -443,6 +341,7 @@ authRouter.post(
           message: "Username or password incorrect",
         });
       }
+
       const isPasswordValid = await bcryptjs.compare(
         req.body.password,
         user.password
@@ -453,8 +352,47 @@ authRouter.post(
           message: "Username or password incorrect",
         });
       }
+
+      if (
+        user.linkedEmailAccount &&
+        user.linkedEmailAccount.expiryDate < new Date()
+      ) {
+        // user.linkedEmailAccount = null;
+        // console.log(user)
+
+        const refreshToken = decrypt(user.linkedEmailAccount.refreshToken);
+        oauth2Client.setCredentials({
+          refresh_token: refreshToken,
+        });
+
+        const newTokens = await oauth2Client.refreshAccessToken();
+        if (newTokens.res.status === 200) {
+          await prisma.linkedEmailAccount.update({
+            where: {
+              userId: user.id,
+            },
+            data: {
+              accessToken: encrypt(newTokens.credentials.access_token),
+              refreshToken: encrypt(newTokens.credentials.refresh_token),
+              expiryDate: new Date(newTokens.credentials.expiry_date),
+            },
+          });
+          user.linkedEmailAccount.accessToken =
+            newTokens.credentials.access_token;
+          user.linkedEmailAccount.expiryDate = new Date(
+            newTokens.credentials.expiry_date
+          );
+        }
+      }
+
+      if(user.linkedEmailAccount){
+        delete user.linkedEmailAccount.refreshToken;
+        user.linkedEmailAccount.accessToken = decrypt(
+          user.linkedEmailAccount.accessToken
+        );
+      }
       const accessToken = jwt.sign({ userid: user.id }, process.env.JWT_SEC, {
-        expiresIn: "1h",
+        expiresIn: "3d",
       });
       return res.status(200).json({
         message: "login successful",
@@ -466,6 +404,7 @@ authRouter.post(
             lastName: user.lastName,
             profilePicture: user.profilePicture,
             activeBusiness: user.activeBusiness,
+            linkedEmailAccount: user.linkedEmailAccount,
           },
           token: accessToken,
         },
@@ -473,6 +412,263 @@ authRouter.post(
     } catch (error) {
       next(error);
       // return handlePrismaError(error, res);
+    }
+  }
+);
+authRouter.post(
+  "/update-password",
+  verifyApiToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { oldPassword, newPassword, confirmNewPassword } = req.body;
+
+    try {
+      if (!oldPassword) {
+        throw new RequiredParameterError("old password");
+      }
+      if (!newPassword) {
+        throw new RequiredParameterError("new password");
+      }
+      if (!confirmNewPassword) {
+        throw new RequiredParameterError("confirm password");
+      }
+
+      const user = await prisma.user.findUnique({
+        where: {
+          id: req.userId,
+        },
+      });
+
+      const isPasswordValid = await bcryptjs.compare(
+        oldPassword,
+        user.password
+      );
+
+      if (!isPasswordValid) {
+        throw new UnauthorizedError(
+          "Old password does not match what is in our database"
+        );
+      }
+      const validateNewPassword = validatePassword(newPassword);
+      if (!validateNewPassword) {
+        throw new InvalidParameterError(
+          "Make sure password length is more than 6, contains a special charcter and at least an uppercase letter"
+        );
+      }
+      if (newPassword === oldPassword) {
+        throw new InvalidParameterError(
+          "New password and old password are the same"
+        );
+      }
+      if (newPassword !== confirmNewPassword) {
+        throw new InvalidParameterError(
+          "New password and old password do not match"
+        );
+      }
+      const saltRounds = 10;
+      const hashedPassword = await bcryptjs.hash(newPassword, saltRounds);
+      await prisma.user.update({
+        where: {
+          id: req.userId,
+        },
+        data: {
+          password: hashedPassword,
+        },
+      });
+      res.json({ message: "Password reset successful" });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+authRouter.post(
+  "/link-mail",
+  verifyApiToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code } = req.body;
+      const userId = req.userId;
+
+      const { tokens } = await oauth2Client.getToken(code);
+      // const tokens = {
+      //   access_token: "process.env.GOOGLE_ACCESS_TOKEN",
+      //   refresh_token: "process.env.GOOGLE_REFRESH_TOKEN",
+      //   expiry_date: "process.env.GOOGLE_EXPIRY_DATE",
+      // }
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new UnauthorizedError("User not found");
+      }
+
+      if (
+        tokens.access_token === undefined ||
+        tokens.refresh_token === undefined ||
+        tokens.expiry_date === undefined
+      ) {
+        throw new BadRequestError("Invalid token received from Google");
+      }
+
+      await prisma.linkedEmailAccount.upsert({
+        where: { userId },
+        update: {
+          accessToken: encrypt(tokens.access_token),
+          refreshToken: encrypt(tokens.refresh_token),
+          expiryDate: new Date(tokens.expiry_date),
+        },
+        create: {
+          accessToken: encrypt(tokens.access_token),
+          refreshToken: encrypt(tokens.refresh_token),
+          expiryDate: new Date(tokens.expiry_date),
+          provider: "GOOGLE",
+          User: {
+            connect: { id: userId },
+          },
+        },
+      });
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          linkedEmail: true,
+        },
+      });
+
+      res.json({
+        message: "Email account linked successfully",
+        data: {
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiryDate: new Date(tokens.expiry_date),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+authRouter.get(
+  "/unlink-mail",
+  verifyApiToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.userId;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new UnauthorizedError("User not found");
+      }
+
+      await prisma.linkedEmailAccount.delete({
+        where: { userId },
+      });
+
+      res.json({ message: "Email account unlinked successfully" });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+authRouter.post(
+  "/link-mail",
+  verifyApiToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code } = req.body;
+      const userId = req.userId;
+
+      const { tokens } = await oauth2Client.getToken(code);
+      // const tokens = {
+      //   access_token: "process.env.GOOGLE_ACCESS_TOKEN",
+      //   refresh_token: "process.env.GOOGLE_REFRESH_TOKEN",
+      //   expiry_date: "process.env.GOOGLE_EXPIRY_DATE",
+      // }
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new UnauthorizedError("User not found");
+      }
+
+      if (
+        tokens.access_token === undefined ||
+        tokens.refresh_token === undefined ||
+        tokens.expiry_date === undefined
+      ) {
+        throw new BadRequestError("Invalid token received from Google");
+      }
+
+      await prisma.linkedEmailAccount.upsert({
+        where: { userId },
+        update: {
+          accessToken: encrypt(tokens.access_token),
+          refreshToken: encrypt(tokens.refresh_token),
+          expiryDate: new Date(tokens.expiry_date),
+        },
+        create: {
+          accessToken: encrypt(tokens.access_token),
+          refreshToken: encrypt(tokens.refresh_token),
+          expiryDate: new Date(tokens.expiry_date),
+          provider: "GOOGLE",
+          User: {
+            connect: { id: userId },
+          },
+        },
+      });
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          linkedEmail: true,
+        },
+      });
+
+      res.json({
+        message: "Email account linked successfully",
+        data: {
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiryDate: new Date(tokens.expiry_date),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+authRouter.get(
+  "/unlink-mail",
+  verifyApiToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.userId;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new UnauthorizedError("User not found");
+      }
+
+      await prisma.linkedEmailAccount.delete({
+        where: { userId },
+      });
+
+      res.json({ message: "Email account unlinked successfully" });
+    } catch (error) {
+      next(error);
     }
   }
 );

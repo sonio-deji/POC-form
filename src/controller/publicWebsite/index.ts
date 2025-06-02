@@ -49,10 +49,10 @@ publicWebsite.get(
         },
       });
 
-      // if (!website.published) {
-      //   throw new NotfoundError("resource");
-      // }
-      const pageDetails = await prisma.page.update({
+      if (!website.published) {
+        throw new NotfoundError("resource");
+      }
+      const page = await prisma.page.update({
         where: {
           slug_websiteId: {
             slug: !path ? "/" : (path as string),
@@ -70,7 +70,7 @@ publicWebsite.get(
       // }
       await prisma.page.update({
         where: {
-          id: pageDetails.id,
+          id: page.id,
         },
         data: {
           views: {
@@ -137,8 +137,8 @@ publicWebsite.get(
           },
         });
       });
-      const { views, ...filteredPage } = pageDetails;
-      const { published, page, ...filteredWebsite } = website;
+      const { views, ...filteredPage } = page;
+      const { published, ...filteredWebsite } = website;
       res.json({
         message: "website retrieved",
         website: filteredWebsite,

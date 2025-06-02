@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import prisma from "../../utils/prisma";
 import { handlePrismaError } from "../../utils/PrimaErrorHandler";
-import { BadRequestError, RequiredParameterError } from "../../errors/appError";
+import { RequiredParameterError } from "../../errors/appError";
 import { generateUniqueUrl } from "../../utils/generateUniqueUrl";
 import { fields } from "../../utils/lib";
 
@@ -76,10 +76,9 @@ businessRouter.post(
             create: {
               name: "new website",
               url: `${url}`,
-              homePage: "home",
               page: {
                 create: {
-                  slug: "home",
+                  slug: "/",
                   title: "Home",
                   label: "Home",
                   // websiteId: website.id,
@@ -115,11 +114,6 @@ businessRouter.get(
               businessName: true,
               about: true,
               location: true,
-              website: {
-                select: {
-                  id: true,
-                },
-              },
             },
           },
         },
@@ -145,16 +139,6 @@ businessRouter.delete(
         throw new RequiredParameterError("business id");
       }
 
-      const activeBusiness = await prisma.user.findUnique({
-        where: {
-          id: req.userId,
-        },
-      });
-      if (req.params.id === activeBusiness.activeBusinessId) {
-        throw new BadRequestError(
-          "Cannot delete active business, please switch to a new business and try again"
-        );
-      }
       const business = await prisma.business.delete({
         where: {
           id: req.params.id,
@@ -173,7 +157,7 @@ businessRouter.delete(
 businessRouter.put(
   "/:id",
   async (req: Request, res: Response, next: NextFunction) => {
-    const { about, location, businessName, img } = req.body;
+    const { about, location, businessName } = req.body;
     const userId = req.userId;
 
     try {
@@ -189,7 +173,6 @@ businessRouter.put(
           about: about,
           location: location,
           businessName: businessName,
-          img,
         },
       });
       res.json({
@@ -223,21 +206,6 @@ businessRouter.post(
         message: "business switched",
         business: business.activeBusiness,
       });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
-businessRouter.get(
-  "/getbusiness/:id",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const business = await prisma.business.findUnique({
-        where: {
-          id: req.params.id,
-        },
-      });
-      res.json({ business });
     } catch (error) {
       next(error);
     }

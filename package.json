@@ -6,7 +6,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
-    "start": "node ./build/index.js"
+    "start": "node ./build/index.js",
+    "worker": "ts-node workers/emailWorker.ts"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,7 @@
     "@types/geoip-lite": "^1.4.4",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^22.5.0",
+    "@types/nodemailer": "^6.4.17",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "nodemon": "^3.1.4",
@@ -33,14 +35,18 @@
     "@prisma/client": "^5.18.0",
     "axios": "^1.9.0",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.53.0",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.4.5",
     "email-validator": "^2.0.4",
     "express": "^4.19.2",
     "geoip-lite": "^1.4.10",
+    "googleapis": "^149.0.0",
+    "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.3",
     "ua-parser-js": "^2.0.3",
-    "zod": "^3.25.30"
+    "zod": "^3.25.34"
   }
 }

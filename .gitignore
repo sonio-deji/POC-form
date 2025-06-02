@@ -2,5 +2,8 @@ node_modules
 # Keep environment variables out of version control
 .env
 
+ docker-compose.yml
+ Dockerfile
 
-/prisma/migrations
+/migrationsdocker-compose.yaml
+Dockerfile
