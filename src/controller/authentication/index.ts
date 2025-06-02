@@ -184,7 +184,7 @@ authRouter.post(
                       type: field.type,
                       required: field.required,
                       options: field.options,
-                      placeholder: field.placeholder
+                      placeholder: field.placeholder,
                     })),
                   },
                 },
@@ -256,7 +256,8 @@ authRouter.post(
  *         application/json:
  *           schema:
  *             type: object
- *             required:
+ *             required:<<<<<<< HEAD
+
  *               - email
  *               - password
  *             properties:
@@ -385,7 +386,7 @@ authRouter.post(
         }
       }
 
-      if(user.linkedEmailAccount){
+      if (user.linkedEmailAccount) {
         delete user.linkedEmailAccount.refreshToken;
         user.linkedEmailAccount.accessToken = decrypt(
           user.linkedEmailAccount.accessToken

@@ -35,6 +35,8 @@ model User {
   linkedEmail        Boolean             @default(false)
   CampaignCreatedBy  Campaign[]          @relation("CampaignCreatedBy")
   CampaignUpdatedBy  Campaign[]          @relation("CampaignUpdatedBy")
+  subscriptions      UserSubscription[]
+  payments           Payment[]
 }
 
 model Business {
@@ -332,4 +334,34 @@ enum CampaignStatus {
   SENDING
   SENT
   FAILED
+}
+
+model Subscription {
+  id                String             @id @default(uuid())
+  name              String
+  price             Float
+  durationMonths    Int
+  userSubscriptions UserSubscription[]
+}
+
+model UserSubscription {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  startDate      DateTime
+  endDate        DateTime
+  status         String
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Float
+  reference String   @unique
+  status    String // 'pending', 'success', 'failed'
+  createdAt DateTime @default(now())
+  metadata  Json?
 }
