@@ -12,6 +12,8 @@ import invoiceRoutes from "../controller/invoice";
 import forgotPassword from "../controller/forgotpassword";
 import customerRouter from "../controller/customers";
 import socialMediaRoutes from "../controller/socials";
+import user from "../controller/user";
+import planRoutes from "../controller/plans";
 
 const router = Router();
 
@@ -30,6 +32,7 @@ router.use("/api/publicwebsite", publicWebsite);
 router.use("/api/pages", verifyApiToken, checkEmailVerified, pageRoutes);
 
 router.use("/api/invoices", verifyApiToken, checkEmailVerified, invoiceRoutes);
+router.use("/api/user", verifyApiToken, checkEmailVerified, user);
 
 router.use("/api/auth", forgotPassword);
 
@@ -38,6 +41,11 @@ router.use(
   verifyApiToken,
   checkEmailVerified,
   customerRouter
+);
+router.use(
+  "/api/plans",
+
+  planRoutes
 );
 router.use(
   "/api/socials",

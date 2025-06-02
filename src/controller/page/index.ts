@@ -3,15 +3,46 @@ import prisma from "../../utils/prisma";
 import websiteRoute from "../website/index";
 import { BadRequestError, NotfoundError } from "../../errors/appError";
 import { randomUUID } from "crypto";
+import { z } from "zod";
 
 const pageRoutes = Router();
+
+const REGEX = /^[a-z0-9-]+$/;
+
+const schema = z
+  .string()
+  .regex(REGEX, "Please input a valid path name without '/' ");
 
 pageRoutes.put(
   "/editpage/:pageId",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { pageId } = req.params;
-      const { content, description, label, title, slug } = req.body;
+      const { content, description, label, title, slug, img } = req.body;
+      if (slug) {
+        const existingSlug = await prisma.page.findFirst({
+          where: {
+            slug,
+            website: {
+              business: {
+                userId: req.userId,
+              },
+            },
+          },
+        });
+        if (existingSlug) {
+          throw new BadRequestError(
+            "Path already exists on this website, please try a new one"
+          );
+        }
+        try {
+          schema.parse(slug);
+        } catch (err: any) {
+          throw new BadRequestError(
+            "Please input a valid path name without '/' "
+          );
+        }
+      }
       const page = await prisma.page.update({
         where: {
           id: pageId,
@@ -27,6 +58,7 @@ pageRoutes.put(
           label,
           title,
           slug,
+          img,
         },
       });
       await prisma.website.update({
@@ -113,9 +145,9 @@ pageRoutes.get(
           websiteId: true,
           description: true,
           label: true,
-          createdAt: true,
+          // createdAt: true,
           img: true,
-          content: true,
+          // content: true,
         },
       });
       res.json(pages);
@@ -127,13 +159,25 @@ pageRoutes.get(
 pageRoutes.post(
   "/addpage/:websiteId",
   async (req: Request, res: Response, next: NextFunction) => {
-    console.log("running");
     try {
       const { websiteId } = req.params;
       const { slug, title, description, label, content, img } = req.body;
+      const existingSlug = await prisma.page.findFirst({
+        where: {
+          slug,
+          website: {
+            id: websiteId,
+          },
+        },
+      });
+      if (existingSlug) {
+        throw new BadRequestError(
+          "Path already exists on this website please try a new one"
+        );
+      }
       const page = await prisma.page.create({
         data: {
-          slug: randomUUID(),
+          slug: slug,
           title,
           description,
           label,

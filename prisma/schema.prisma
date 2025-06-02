@@ -23,11 +23,15 @@ model User {
   firstName         String
   lastName          String
   businesses        Business[]
+  subscription      String                  @default("Free")
   passwordToken     PasswordResetToken?
+  phoneNumber       String?
   profilePicture    String?
   activeBusinessId  String?                 @unique
   activeBusiness    Business?               @relation("UserActiveBusiness", fields: [activeBusinessId], references: [id])
   emailVerification EmailVerificationToken?
+  subscriptions     UserSubscription[]
+  payments          Payment[]
 }
 
 model Business {
@@ -35,6 +39,7 @@ model Business {
   businessName  String
   location      String
   about         String
+  description   String?
   createdAt     DateTime      @default(now())
   userId        String
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -44,6 +49,7 @@ model Business {
   Customer      Customer[]
   socialMedia   SocialMedia[]
   businessEmail String?
+  img           String?
 
   addressLineOne String?
   addressLineTwo String?
@@ -66,7 +72,7 @@ model Website {
   dateCreated    DateTime   @default(now())
   page           Page[]
   url            String     @unique()
-  homePage       String     @default("/")
+  homePage       String     @default("home")
   businessId     String     @unique
   published      Boolean    @default(false)
   urlVisits      Int        @default(0)
@@ -170,7 +176,7 @@ model VisitsByBrowser {
   browser     String
   count       Int       @default(1)
   analyticsId String
-  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByBrowser")
+  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByBrowser", onDelete: Cascade)
 
   @@unique([browser, analyticsId])
 }
@@ -183,7 +189,7 @@ model VisitsByLocation {
   city        String
   count       Int       @default(1)
   analyticsId String
-  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByLocation")
+  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByLocation", onDelete: Cascade)
 
   @@unique([country, region, city, timezone, analyticsId])
 }
@@ -249,8 +255,31 @@ model Notes {
   updatedAt  DateTime @updatedAt
 }
 
-// model ActiveBusiness {
-//   id String @id @unique
-//   businessId String
-//   business Business @relation(fields: [businessId], references: [id] )
-// }
+model Subscription {
+  id                String             @id @default(uuid())
+  name              String
+  price             Float
+  durationMonths    Int
+  userSubscriptions UserSubscription[]
+}
+
+model UserSubscription {
+  id             String       @id @default(uuid())
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String
+  startDate      DateTime
+  endDate        DateTime
+  status         String
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Float
+  reference String   @unique
+  status    String // 'pending', 'success', 'failed'
+  createdAt DateTime @default(now())
+}
