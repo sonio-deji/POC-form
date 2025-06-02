@@ -1,13 +1,25 @@
-import { BadRequestError } from "../../errors/appError";
+import { BadRequestError, NotfoundError } from "../../errors/appError";
+import {
+  StandardResponse,
+  SuccessHttpStatusCode,
+} from "../../routes/standardResponse";
 import prisma from "../../utils/prisma";
 
 export interface IFields {
   label: string;
-  type: "email" | "text" | "multi-select";
+  type:
+    | "text"
+    | "number"
+    | "date"
+    | "dropdown"
+    | "checkbox"
+    | "email"
+    | "textarea";
   options: string[];
   required: boolean;
+  placeholder?: string;
 }
-export async function getForm(formId: number, userId: string) {
+export async function getForm(formId: string, userId: string) {
   const form = await prisma.form.findUnique({
     where: {
       id: formId,
@@ -39,6 +51,7 @@ export async function createForm(
           type: field.type,
           options: field.options,
           required: field.required,
+          placeholder: field.placeholder || `Enter ${field.label}`,
         })),
       },
     },
@@ -49,7 +62,7 @@ export async function createForm(
   return form;
 }
 
-export async function submitForm(formId: number, responses: any[]) {
+export async function submitForm(formId: string, responses: any[]) {
   const form = await prisma.form.findUnique({
     where: { id: formId },
     include: { fields: true },
@@ -92,6 +105,13 @@ export async function submitForm(formId: number, responses: any[]) {
 
   const existingCustomer = await prisma.customer.findFirst({
     where: { email: emailResponse.value },
+    include: {
+      createdFrom: {
+        include: {
+          responses: true,
+        },
+      },
+    },
   });
 
   const submission = await prisma.$transaction(async (tx) => {
@@ -105,7 +125,41 @@ export async function submitForm(formId: number, responses: any[]) {
           newMessage: true,
           businessId: form.businessId,
         },
+        include: {
+          createdFrom: {
+            include: {
+              responses: true,
+            },
+          },
+        },
       });
+    } else {
+      const newResponses = [];
+      responses.forEach((response) => {
+        const existingResponse = existingCustomer.createdFrom.responses.find(
+          (r) => r.fieldId === response.fieldId
+        );
+        if (!existingResponse) {
+          newResponses.push({
+            fieldId: response.fieldId,
+            value: response.value,
+          });
+        }
+      })
+    
+      if (newResponses.length > 0) {
+        await tx.submission.update({
+          where: { id: existingCustomer.createdFromId },
+          data: {
+            responses: {
+              create: newResponses.map(({ fieldId, value }) => ({
+                fieldId,
+                value,
+              })),
+            },
+          },
+        });
+      }
     }
 
     const submission = await tx.submission.create({
@@ -136,7 +190,7 @@ export async function submitForm(formId: number, responses: any[]) {
   return submission;
 }
 
-export async function getFormWithValues(formId: number) {
+export async function getFormWithValues(formId: string) {
   const formWithValues = await prisma.form.findUnique({
     where: { id: formId },
     include: {
@@ -160,7 +214,7 @@ export async function getFormWithValues(formId: number) {
   return formWithValues;
 }
 
-export async function getFormSubmissions(formId: number) {
+export async function getFormSubmissions(formId: string) {
   const submissions = await prisma.submission.findMany({
     where: { formId },
     include: {
@@ -196,41 +250,56 @@ export async function getFormSubmissions(formId: number) {
 
   return formattedSubmissions;
 }
-export async function updateForm(
-  formId: number,
-  title: string,
-  description: string,
-  fields: any[]
-) {
+export async function updateForm({
+  formId,
+  title,
+  description,
+  fields,
+}: {
+  formId: string;
+  title: string;
+  description: string;
+  fields: {
+    id: number;
+    label: string;
+    type: string;
+    options?: string[];
+    required?: boolean;
+  }[];
+}) {
   const updatedForm = await prisma.form.update({
     where: { id: formId },
     data: {
-      title,
-      description,
-      fields: {
-        deleteMany: {},
-        create: fields.map((field) => ({
-          label: field.label,
-          type: field.type,
-          options: field.options,
-          required: field.required,
-        })),
-      },
+      ...(title && { title }),
+      ...(description && { description }),
     },
     include: {
       fields: true,
     },
   });
-  return updatedForm;
+  const response = new StandardResponse(
+    updatedForm,
+    "Form updated successfully",
+    SuccessHttpStatusCode.OK
+  );
+  return response;
 }
 
 export async function addFormField(
-  formId: number,
+  formId: string,
   fieldData: {
     label: string;
-    type: string;
+    type:
+      | "text"
+      | "number"
+      | "date"
+      | "dropdown"
+      | "checkbox"
+      | "email"
+      | "textarea";
     options?: string[];
     required?: boolean;
+    placeholder?: string;
   }
 ) {
   const field = await prisma.field.create({
@@ -238,15 +307,22 @@ export async function addFormField(
       formId,
       label: fieldData.label,
       type: fieldData.type,
-      options: fieldData.options,
+      options: fieldData.options || [],
       required: fieldData.required || false,
+      placeholder: fieldData.placeholder || "",
     },
   });
 
-  return field;
+  const response = new StandardResponse(
+    field,
+    "Field added successfully",
+    SuccessHttpStatusCode.OK
+  );
+
+  return response;
 }
 
-export async function deleteFormField(fieldId: number) {
+export async function deleteFormField(fieldId: string) {
   const field = await prisma.field.findUnique({
     where: { id: fieldId },
   });
@@ -259,5 +335,75 @@ export async function deleteFormField(fieldId: number) {
     where: { id: fieldId },
   });
 
-  return deletedField;
+  const response = new StandardResponse(
+    deletedField,
+    "Field deleted successfully",
+    SuccessHttpStatusCode.OK
+  );
+  return response;
+}
+
+export async function updateFormField({
+  fieldId,
+  label,
+  required,
+  options,
+  placeholder,
+}: {
+  fieldId: string;
+  label?: string;
+  required?: boolean;
+  options?: string[];
+  placeholder?: string;
+}) {
+  const field = await prisma.field.findUnique({
+    where: { id: fieldId },
+  });
+  if (!field) {
+    throw new NotfoundError("Field not found");
+  }
+  const updatedField = await prisma.field.update({
+    where: { id: fieldId },
+    data: {
+      ...(label && { label }),
+      ...(required && { required }),
+      ...(options && { options }),
+      ...(placeholder && { placeholder }),
+    },
+  });
+
+  const response = new StandardResponse(
+    updatedField,
+    "Field updated successfully",
+    SuccessHttpStatusCode.OK
+  );
+  return response;
+}
+
+export async function getFormByBusinessId(businessId: string) {
+  const form = await prisma.form.findFirst({
+    where: { businessId },
+    include: {
+      fields: {
+        select: {
+          id: true,
+          label: true,
+          options: true,
+          required: true,
+          type: true,
+          placeholder: true,
+          displayField: true,
+        },
+      },
+    },
+  });
+  if (!form) {
+    throw new NotfoundError("Form not found");
+  }
+  const response = new StandardResponse(
+    form,
+    "Form found successfully.",
+    SuccessHttpStatusCode.OK
+  );
+  return response;
 }

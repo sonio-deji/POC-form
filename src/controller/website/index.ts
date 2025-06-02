@@ -1,8 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import prisma from "../../utils/prisma";
 import { NotBeforeError } from "jsonwebtoken";
-import { NotfoundError, RequiredParameterError } from "../../errors/appError";
-import { generateUniqueUrl } from "../../utils/generateUniqueUrl";
+import { NotfoundError } from "../../errors/appError";
 
 const websiteRoute = Router();
 websiteRoute.get(
@@ -60,7 +59,7 @@ websiteRoute.put(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { websiteid } = req.params;
-      const { header, footer, favicon, description, theme } = req.body;
+      const { header, footer, favicon, description } = req.body;
       const updateWebsite = await prisma.website.update({
         where: {
           id: websiteid,
@@ -73,7 +72,6 @@ websiteRoute.put(
           footer,
           favicon,
           description,
-          theme,
         },
       });
       res.json({
@@ -97,6 +95,9 @@ websiteRoute.get(
 
           business: {
             userId: req.userId,
+            user: {
+              activeBusinessId: req.params.businessId,
+            },
           },
         },
         data: {
@@ -150,6 +151,7 @@ websiteRoute.get(
         },
       });
       res.json({
+        message: "Website unpublished successfully",
         published: website.published,
       });
     } catch (error) {
@@ -157,48 +159,7 @@ websiteRoute.get(
     }
   }
 );
-websiteRoute.post(
-  "/regenerate-website/:websiteId",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { websiteId } = req.params;
-      const { header, footer, favicon, description, theme, content } = req.body;
 
-      await prisma.page.deleteMany({
-        where: {
-          websiteId: websiteId,
-        },
-      });
-
-      const updateWebsite = await prisma.website.update({
-        where: {
-          id: websiteId,
-          business: {
-            userId: req.userId,
-          },
-        },
-        data: {
-          header,
-          footer,
-          favicon,
-          description,
-          theme,
-          page: {
-            create: {
-              slug: "home",
-              title: "Home",
-              label: "Home",
-              content: content,
-            },
-          },
-        },
-      });
-      res.json({ website: updateWebsite });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
 websiteRoute.put(
   "/changehome/:websiteId",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -221,7 +182,7 @@ websiteRoute.put(
         },
       });
       if (!home) {
-        throw new NotfoundError("page");
+        throw new NotfoundError("url");
       }
 
       // console.log(home);
@@ -293,7 +254,8 @@ websiteRoute.get(
         websiteDashboard: {
           ...transactionRes.websiteDashboard,
           hasWebsite: transactionRes.websiteDashboard.page.find(
-            (item) => item.slug === transactionRes.websiteDashboard.homePage
+            (item) =>
+              item.slug || item.id === transactionRes.websiteDashboard.homePage
           )?.content
             ? true
             : false,
@@ -304,7 +266,6 @@ websiteRoute.get(
           footer: undefined,
           socialMedia: undefined,
           hasSocials: transactionRes.business.socialMedia.length > 0,
-          page: undefined,
           homePage: transactionRes.websiteDashboard.page.find(
             (item) => item.slug === transactionRes.websiteDashboard.homePage
           ).id,
@@ -317,26 +278,10 @@ websiteRoute.get(
 );
 
 websiteRoute.post(
-  "/changewebsiteurl/:websiteId",
+  "/changewebsiteurl",
   async (req: Request, res: Response, next: NextFunction) => {
-    const { websiteId } = req.params;
     try {
-      const { url } = req.body;
-      if (!url) {
-        throw new RequiredParameterError("URL is required");
-      }
-      await prisma.website.update({
-        where: {
-          id: websiteId,
-        },
-        data: {
-          url,
-        },
-      });
-      res.json({ message: "url updated successfully" });
-    } catch (error) {
-      next(error);
-    }
+    } catch (error) {}
   }
 );
 export default websiteRoute;

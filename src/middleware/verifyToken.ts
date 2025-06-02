@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import * as jwt from "jsonwebtoken";
 import { HttpStatusCode } from "../errors/appError";
+import prisma from "../utils/prisma";
 
 // extend Request type to include userId
 declare global {
@@ -13,7 +14,7 @@ declare global {
   }
 }
 
-export const verifyApiToken = (
+export const verifyApiToken = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -34,8 +35,24 @@ export const verifyApiToken = (
       userid: string;
     };
 
+    const user = await prisma.user.findUnique({
+      where: {
+        id: decoded.userid,
+      },
+      include: {
+        activeBusiness: true,
+      }
+    })
+
+
     // console.log(decoded);
     req.userId = decoded.userid;
+    const businessId = user?.activeBusiness?.id
+
+    if (businessId) {
+      req.businessId = businessId;
+    }
+    
     next();
   } catch (error) {
     return res.status(HttpStatusCode.BAD_REQUEST).json({

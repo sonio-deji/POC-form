@@ -1,22 +1,29 @@
 import { Router } from "express";
 import { RequiredParameterError } from "../../errors/appError";
-import { getCustomerById, getCustomers, updateCustomer } from "./customerActions";
+import {
+  deleteCustomer,
+  getCustomerById,
+  getCustomers,
+  updateCustomer,
+} from "./customerActions";
 
 const customerRouter = Router();
 
-customerRouter.get("/:businessId", async (req, res, next) => {
+customerRouter.get("/", async (req, res, next) => {
   try {
-    const businessId = req.params.businessId;
+    const businessId = req.businessId;
     const { search = "", page = "1", limit = "10" } = req.query;
-    if (!businessId) {
-      throw new RequiredParameterError("businessId");
-    }
 
     const parsedPage = parseInt(page as string, 10);
     const parsedLimit = parseInt(limit as string, 10);
 
-    const customers = await getCustomers({ businessId: String(businessId) });
-    res.json(customers);
+    const customers = await getCustomers({
+      businessId: String(businessId),
+      search: String(search),
+      page: parsedPage,
+      limit: parsedLimit,
+    });
+    res.status(customers.statusCode || 200).json(customers);
   } catch (error) {
     next(error);
   }
@@ -55,8 +62,21 @@ customerRouter.put("/:customerId", async (req, res, next) => {
   }
 });
 
-export default customerRouter;
+customerRouter.delete("/:customerId", async (req, res, next) => {
+  try {
+    const customerId = req.params.customerId;
+    if (!customerId || customerId.length === 0) {
+      throw new RequiredParameterError("customerId");
+    }
 
+    const result = await deleteCustomer(customerId);
+    res.json({ message: "Customer deleted successfully", customer: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default customerRouter;
 
 // updating a user basically updates the original form submission
 // then if the formFields being submitted include the email and name, update the customer object also

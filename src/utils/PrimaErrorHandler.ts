@@ -42,6 +42,12 @@ export function handlePrismaError(error: any, res: Response) {
       return res.status(404).json({
         message: "Record to update or delete does not exist.",
       });
+    case "22P02":{
+      // PostgreSQL error code for invalid text representation
+      return res.status(400).json({
+        message: error.message || "Invalid input syntax for type.",
+      });
+    }
 
     default:
       return res.status(400).json({ message: error.message });

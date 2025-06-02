@@ -23,15 +23,18 @@ model User {
   firstName         String
   lastName          String
   businesses        Business[]
-  subscription      String                  @default("Free")
   passwordToken     PasswordResetToken?
-  phoneNumber       String?
   profilePicture    String?
   activeBusinessId  String?                 @unique
   activeBusiness    Business?               @relation("UserActiveBusiness", fields: [activeBusinessId], references: [id])
   emailVerification EmailVerificationToken?
-  subscriptions     UserSubscription[]
-  payments          Payment[]
+  notes             Notes[]                 @relation("UserNotes")
+  notesUpdated      Notes[]                 @relation("NotesUpdated")
+
+  linkedEmailAccount LinkedEmailAccount?
+  linkedEmail        Boolean             @default(false)
+  CampaignCreatedBy  Campaign[]          @relation("CampaignCreatedBy")
+  CampaignUpdatedBy  Campaign[]          @relation("CampaignUpdatedBy")
 }
 
 model Business {
@@ -39,7 +42,6 @@ model Business {
   businessName  String
   location      String
   about         String
-  description   String?
   createdAt     DateTime      @default(now())
   userId        String
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -49,7 +51,6 @@ model Business {
   Customer      Customer[]
   socialMedia   SocialMedia[]
   businessEmail String?
-  img           String?
 
   addressLineOne String?
   addressLineTwo String?
@@ -57,7 +58,9 @@ model Business {
   state          String?
   city           String?
   postalCode     String?
-  activeForUser  User?   @relation("UserActiveBusiness") // reverse of activeBusiness
+  activeForUser  User?      @relation("UserActiveBusiness") // reverse of activeBusiness
+  notes          Notes[]    @relation("BusinessNotes")
+  Campaign       Campaign[]
 }
 
 model Website {
@@ -72,7 +75,7 @@ model Website {
   dateCreated    DateTime   @default(now())
   page           Page[]
   url            String     @unique()
-  homePage       String     @default("home")
+  homePage       String     @default("/")
   businessId     String     @unique
   published      Boolean    @default(false)
   urlVisits      Int        @default(0)
@@ -111,7 +114,7 @@ model Analytics {
 }
 
 model Form {
-  id          Int          @id @default(autoincrement())
+  id          String       @id @unique @default(cuid())
   title       String
   description String?
   fields      Field[]
@@ -122,20 +125,32 @@ model Form {
 }
 
 model Field {
-  id        Int        @id @default(autoincrement())
-  form      Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
-  formId    Int
-  label     String
-  type      String
-  options   String[]
-  required  Boolean    @default(false)
-  responses Response[]
+  id           String     @id @unique @default(cuid())
+  form         Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  formId       String
+  label        String
+  type         FieldType
+  placeholder  String     @default("")
+  displayField Boolean    @default(true)
+  required     Boolean    @default(false)
+  options      String[]
+  responses    Response[]
+}
+
+enum FieldType {
+  text
+  number
+  date
+  dropdown
+  checkbox
+  email
+  textarea
 }
 
 model Submission {
   id          Int        @id @default(autoincrement())
   form        Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
-  formId      Int
+  formId      String
   responses   Response[]
   submittedAt DateTime   @default(now())
 
@@ -149,7 +164,7 @@ model Response {
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   submissionId Int
   field        Field      @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  fieldId      Int
+  fieldId      String
   value        String
 }
 
@@ -169,6 +184,7 @@ model Customer {
   submissions Submission[] @relation("CustomerSubmissions")
   notes       Notes[]      @relation("CustomerNotes")
   invoices    Invoice[]    @relation("CustomerInvoices")
+  campaigns   Campaign[]   @relation("CampaignRecipients")
 }
 
 model VisitsByBrowser {
@@ -176,7 +192,7 @@ model VisitsByBrowser {
   browser     String
   count       Int       @default(1)
   analyticsId String
-  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByBrowser", onDelete: Cascade)
+  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByBrowser")
 
   @@unique([browser, analyticsId])
 }
@@ -189,7 +205,7 @@ model VisitsByLocation {
   city        String
   count       Int       @default(1)
   analyticsId String
-  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByLocation", onDelete: Cascade)
+  analytics   Analytics @relation(fields: [analyticsId], references: [websiteId], name: "visitedByLocation")
 
   @@unique([country, region, city, timezone, analyticsId])
 }
@@ -246,40 +262,74 @@ model SocialMedia {
 }
 
 model Notes {
+  id            String   @id @default(cuid())
+  title         String
+  content       String?
+  createdAt     DateTime @default(now())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, name: "CustomerNotes")
+  updatedAt     DateTime @updatedAt
+  createdById   String? // Optional field to track who created the note
+  createdByUser User?    @relation(fields: [createdById], references: [id], onDelete: SetNull, name: "UserNotes")
+  updatedById   String? // Optional field to track who last updated the note
+  updatedByUser User?    @relation(fields: [updatedById], references: [id], onDelete: SetNull, "NotesUpdated")
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade, name: "BusinessNotes")
+}
+
+// social media
+
+model LinkedEmailAccount {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  accessToken  String
+  provider     Providers
+  refreshToken String
+  expiryDate   DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  User User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Providers {
+  GOOGLE
+  MICROSOFT
+  // CUSTOM
+}
+
+model Campaign {
   id         String   @id @default(cuid())
-  title      String
-  content    String?
-  createdAt  DateTime @default(now())
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade, name: "CustomerNotes")
-  updatedAt  DateTime @updatedAt
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User       @relation(fields: [createdById], references: [id], onDelete: Cascade, name: "CampaignCreatedBy")
+  updatedById String?
+  updatedBy   User?      @relation(fields: [updatedById], references: [id], onDelete: SetNull, name: "CampaignUpdatedBy")
+  title       String
+  description String     @default("")
+  body        String     @default("")
+  recipients  Customer[] @relation("CampaignRecipients")
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  scheduledAt DateTime? @default(now())
+  sentAt      DateTime?
+
+  status CampaignStatus @default(DRAFT)
+  jobId  String?        @unique
+
+  failedCount    Int @default(0)
+  deliveredCount Int @default(0)
+
+  failedRecipients String[] @default([])
 }
 
-model Subscription {
-  id                String             @id @default(uuid())
-  name              String
-  price             Float
-  durationMonths    Int
-  userSubscriptions UserSubscription[]
-}
-
-model UserSubscription {
-  id             String       @id @default(uuid())
-  user           User         @relation(fields: [userId], references: [id])
-  userId         String
-  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
-  subscriptionId String
-  startDate      DateTime
-  endDate        DateTime
-  status         String
-}
-
-model Payment {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  amount    Float
-  reference String   @unique
-  status    String // 'pending', 'success', 'failed'
-  createdAt DateTime @default(now())
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
 }
