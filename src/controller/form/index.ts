@@ -47,16 +47,16 @@ formRouter.get(`/submissions/:formId`, async (req, res) => {
   res.json(result);
 });
 
-formRouter.get(`/getform`, async (req, res) => {
-  const { formId } = req.body;
+formRouter.get(`/getform/:formId`, async (req, res) => {
+  const { formId } = req.params;
 
-  const result = await getForm(formId);
+  const result = await getForm(Number(formId), req.userId);
   res.json(result);
 });
 formRouter.post(`/addform`, async (req, res) => {
   const { formId, formDetails } = req.body;
-  console.log(formId, "formId");
-  console.log(formDetails, "form details");
+  // console.log(formId, "formId");
+  // console.log(formDetails, "form details");
   const result = await addFormField(formId, formDetails);
   res.json(result);
 });

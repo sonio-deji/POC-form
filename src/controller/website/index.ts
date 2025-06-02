@@ -1,17 +1,23 @@
 import { Router, Request, Response, NextFunction } from "express";
 import prisma from "../../utils/prisma";
 import { NotBeforeError } from "jsonwebtoken";
-import { NotfoundError } from "../../errors/appError";
+import { NotfoundError, RequiredParameterError } from "../../errors/appError";
+import { generateUniqueUrl } from "../../utils/generateUniqueUrl";
 
 const websiteRoute = Router();
-
 websiteRoute.get(
-  "/:businessId",
+  "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const website = await prisma.website.findUnique({
+      const website = await prisma.website.findFirst({
         where: {
-          businessId: req.params.businessId,
+          businessId:
+            (
+              await prisma.user.findUnique({
+                where: { id: req.userId },
+                select: { activeBusinessId: true },
+              })
+            )?.activeBusinessId ?? "",
         },
         select: {
           page: true,
@@ -26,6 +32,7 @@ websiteRoute.get(
           published: true,
           homePage: true,
           businessId: true,
+          theme: true,
           business: {
             select: {
               form: {
@@ -33,6 +40,7 @@ websiteRoute.get(
                   fields: true,
                   title: true,
                   description: true,
+                  id: true,
                 },
               },
             },
@@ -52,7 +60,7 @@ websiteRoute.put(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { websiteid } = req.params;
-      const { header, footer, favicon, description } = req.body;
+      const { header, footer, favicon, description, theme } = req.body;
       const updateWebsite = await prisma.website.update({
         where: {
           id: websiteid,
@@ -65,6 +73,7 @@ websiteRoute.put(
           footer,
           favicon,
           description,
+          theme,
         },
       });
       res.json({
@@ -77,15 +86,15 @@ websiteRoute.put(
   }
 );
 websiteRoute.get(
-  "/publish/:websiteId",
+  "/publish/:businessId",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { websiteId } = req.params;
-      console.log(websiteId);
 
       await prisma.website.update({
         where: {
           id: websiteId,
+
           business: {
             userId: req.userId,
           },
@@ -141,7 +150,6 @@ websiteRoute.get(
         },
       });
       res.json({
-        message: "Website unpublished successfully",
         published: website.published,
       });
     } catch (error) {
@@ -149,7 +157,48 @@ websiteRoute.get(
     }
   }
 );
+websiteRoute.post(
+  "/regenerate-website/:websiteId",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { websiteId } = req.params;
+      const { header, footer, favicon, description, theme, content } = req.body;
 
+      await prisma.page.deleteMany({
+        where: {
+          websiteId: websiteId,
+        },
+      });
+
+      const updateWebsite = await prisma.website.update({
+        where: {
+          id: websiteId,
+          business: {
+            userId: req.userId,
+          },
+        },
+        data: {
+          header,
+          footer,
+          favicon,
+          description,
+          theme,
+          page: {
+            create: {
+              slug: "home",
+              title: "Home",
+              label: "Home",
+              content: content,
+            },
+          },
+        },
+      });
+      res.json({ website: updateWebsite });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 websiteRoute.put(
   "/changehome/:websiteId",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -171,9 +220,8 @@ websiteRoute.put(
           },
         },
       });
-      console.log(home);
       if (!home) {
-        throw new NotfoundError("url");
+        throw new NotfoundError("page");
       }
 
       // console.log(home);
@@ -186,7 +234,6 @@ websiteRoute.put(
         },
         data: {
           homePage,
-          lastModfified: new Date(),
         },
       });
       res.json({ message: "Home page changed successfully", homePage: home });
@@ -200,29 +247,93 @@ websiteRoute.get(
   "/websitedetails/websitedashboard",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const websiteDashboard = await prisma.website.findUnique({
-        where: {
-          businessId: req.businessId,
-        },
-        select: {
-          published: true,
-          header: true,
-          footer: true,
-          url: true,
-        },
+      const transactionRes = await prisma.$transaction(async () => {
+        const websiteDashboard = await prisma.website.findFirst({
+          where: {
+            businessId:
+              (
+                await prisma.user.findUnique({
+                  where: { id: req.userId },
+                  select: { activeBusinessId: true },
+                })
+              )?.activeBusinessId ?? "",
+          },
+          select: {
+            published: true,
+            header: true,
+            footer: true,
+            url: true,
+            id: true,
+            page: true,
+            homePage: true,
+          },
+        });
+
+        const business = await prisma.business.findFirst({
+          where: {
+            user: {
+              id: req.userId,
+              activeBusiness: {
+                userId: req.userId,
+              },
+            },
+          },
+          include: {
+            socialMedia: true,
+          },
+        });
+
+        return { websiteDashboard, business };
       });
+
+      // const {published,  ...websiteDashboard} = transactionRes.websiteDashboard
 
       res.json({
         message: "successful",
         websiteDashboard: {
-          ...websiteDashboard,
-          hasWebsite: !!websiteDashboard.header,
-          hasCustomDomain: !websiteDashboard.url.endsWith("fluttersuite.com"),
+          ...transactionRes.websiteDashboard,
+          hasWebsite: transactionRes.websiteDashboard.page.find(
+            (item) => item.slug === transactionRes.websiteDashboard.homePage
+          )?.content
+            ? true
+            : false,
+          hasCustomDomain:
+            !transactionRes.websiteDashboard.url.endsWith("fluttersuite.com"),
           url: undefined,
           header: undefined,
           footer: undefined,
+          socialMedia: undefined,
+          hasSocials: transactionRes.business.socialMedia.length > 0,
+          page: undefined,
+          homePage: transactionRes.websiteDashboard.page.find(
+            (item) => item.slug === transactionRes.websiteDashboard.homePage
+          ).id,
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+websiteRoute.post(
+  "/changewebsiteurl/:websiteId",
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { websiteId } = req.params;
+    try {
+      const { url } = req.body;
+      if (!url) {
+        throw new RequiredParameterError("URL is required");
+      }
+      await prisma.website.update({
+        where: {
+          id: websiteId,
+        },
+        data: {
+          url,
+        },
+      });
+      res.json({ message: "url updated successfully" });
     } catch (error) {
       next(error);
     }

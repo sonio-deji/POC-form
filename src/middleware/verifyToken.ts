@@ -8,6 +8,7 @@ declare global {
     interface Request {
       userId?: string;
       businessId?: string;
+      id?: string;
     }
   }
 }
@@ -31,11 +32,10 @@ export const verifyApiToken = (
   try {
     const decoded = jwt.verify(token, process.env.JWT_SEC as string) as {
       userid: string;
-      businessId: string;
     };
 
+    // console.log(decoded);
     req.userId = decoded.userid;
-    req.businessId = decoded.businessId;
     next();
   } catch (error) {
     return res.status(HttpStatusCode.BAD_REQUEST).json({

@@ -13,7 +13,7 @@ publicWebsite.get(
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { path, url } = req.query;
-      console.log(url);
+      // console.log(url);
       // if (!url) {
       //   throw new RequiredParameterError("Url");
       // }
@@ -49,10 +49,10 @@ publicWebsite.get(
         },
       });
 
-      if (!website.published) {
-        throw new NotfoundError("resource");
-      }
-      const page = await prisma.page.update({
+      // if (!website.published) {
+      //   throw new NotfoundError("resource");
+      // }
+      const pageDetails = await prisma.page.update({
         where: {
           slug_websiteId: {
             slug: !path ? "/" : (path as string),
@@ -70,7 +70,7 @@ publicWebsite.get(
       // }
       await prisma.page.update({
         where: {
-          id: page.id,
+          id: pageDetails.id,
         },
         data: {
           views: {
@@ -82,7 +82,7 @@ publicWebsite.get(
       const ua = parser.UAParser(req.headers["user-agent"]).browser;
       const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
 
-      const location = lookup.lookup("138.91.173.34" as string);
+      const location = lookup.lookup(ip as string);
       const { country, region, city, timezone } = location;
       await prisma.$transaction(async (tx) => {
         // Upsert analytics
@@ -137,8 +137,8 @@ publicWebsite.get(
           },
         });
       });
-      const { views, ...filteredPage } = page;
-      const { published, ...filteredWebsite } = website;
+      const { views, ...filteredPage } = pageDetails;
+      const { published, page, ...filteredWebsite } = website;
       res.json({
         message: "website retrieved",
         website: filteredWebsite,

@@ -7,9 +7,14 @@ export interface IFields {
   options: string[];
   required: boolean;
 }
-export async function getForm(formId: number) {
+export async function getForm(formId: number, userId: string) {
   const form = await prisma.form.findUnique({
-    where: { id: formId },
+    where: {
+      id: formId,
+      business: {
+        userId,
+      },
+    },
     include: {
       fields: true,
     },
@@ -43,7 +48,6 @@ export async function createForm(
   });
   return form;
 }
-
 
 export async function submitForm(formId: number, responses: any[]) {
   const form = await prisma.form.findUnique({
@@ -117,8 +121,6 @@ export async function submitForm(formId: number, responses: any[]) {
       },
       include: { responses: true },
     });
-
-    
 
     await tx.customer.update({
       where: { id: customer.id },

@@ -1,6 +1,5 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import express from "express";
-import authRouter from "./controller/authentication";
 import * as dotenv from "dotenv";
 import { Application, NextFunction, Request, Response } from "express";
 import {
@@ -14,13 +13,13 @@ import {
 import swaggerjsdocs from "swagger-jsdoc";
 import swaggerui from "swagger-ui-express";
 import { handlePrismaError } from "./utils/PrimaErrorHandler";
-
+import cors from "cors";
 import routes from "./routes/routes";
 
 dotenv.config();
 const PORT = process.env.PORT || 5000;
 const app = express();
-
+app.use(cors());
 const options: swaggerjsdocs.Options = {
   definition: {
     openapi: "3.0.0",
@@ -67,7 +66,7 @@ app.use(
   })
 );
 
-app.use(routes)
+app.use(routes);
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   // Handle specific Prisma errors
