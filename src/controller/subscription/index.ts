@@ -3,19 +3,25 @@ import prisma from "../../utils/prisma";
 import axios from "axios";
 import crypto from "crypto";
 import { NotfoundError } from "../../errors/appError";
-import { json } from "stream/consumers";
 
 const subscriptionRoutes = Router();
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_TEST_SECRET_KEY;
 const CALLBACK_URL =
   process.env.PAYSTACK_CALLBACK_URL ||
-  "https://yourdomain.com/paystack/webhook";
+  "http://localhost:3000/paystack/callback";
 
 subscriptionRoutes.get(
   "/getallSubscriptions",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const subscriptions = await prisma.subscription.findMany();
+      const subscriptions = await prisma.subscription.findMany({
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          durationMonths: true,
+        },
+      });
       res.json(subscriptions);
     } catch (error) {
       next(error);
@@ -47,7 +53,7 @@ subscriptionRoutes.post(
           email: user.email,
           amount: subscription.price * 100,
           callback_url: CALLBACK_URL,
-          metadata: { userId: req.userId, subscriptionId },
+          metadata: { userId: user.id, subscriptionId },
         },
         { headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` } }
       );
@@ -58,7 +64,7 @@ subscriptionRoutes.post(
           amount: subscription.price,
           reference: response.data.data.reference,
           status: "pending",
-          metadata: { subscriptionId },
+          metadata: { subscriptionId, userId: req.userId },
         },
       });
 
@@ -110,9 +116,11 @@ subscriptionRoutes.post(
           },
         });
       }
+      console.log("running");
 
       res.json({ message: "Payment successful" });
     } catch (error) {
+      console.log(error);
       next(error);
     }
   }

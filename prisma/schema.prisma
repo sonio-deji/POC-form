@@ -24,6 +24,7 @@ model User {
   lastName          String
   businesses        Business[]
   passwordToken     PasswordResetToken?
+  phoneNumber       String?
   profilePicture    String?
   activeBusinessId  String?                 @unique
   activeBusiness    Business?               @relation("UserActiveBusiness", fields: [activeBusinessId], references: [id])
@@ -40,28 +41,28 @@ model User {
 }
 
 model Business {
-  id            String        @id @default(cuid())
-  businessName  String
-  location      String
-  about         String
-  createdAt     DateTime      @default(now())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  website       Website?      @relation("BusinessToWebsite")
-  form          Form?         @relation("formToBusiness")
-  invoice       Invoice[]     @relation("BusinessToInvoice")
-  Customer      Customer[]
-  socialMedia   SocialMedia[]
-  businessEmail String?
-
+  id             String        @id @default(cuid())
+  businessName   String
+  location       String
+  about          String
+  createdAt      DateTime      @default(now())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  website        Website?      @relation("BusinessToWebsite")
+  form           Form?         @relation("formToBusiness")
+  invoice        Invoice[]     @relation("BusinessToInvoice")
+  Customer       Customer[]
+  socialMedia    SocialMedia[]
+  businessEmail  String?
+  description    String?
   addressLineOne String?
   addressLineTwo String?
   country        String?
   state          String?
   city           String?
   postalCode     String?
-  activeForUser  User?      @relation("UserActiveBusiness") // reverse of activeBusiness
-  notes          Notes[]    @relation("BusinessNotes")
+  activeForUser  User?         @relation("UserActiveBusiness") // reverse of activeBusiness
+  notes          Notes[]       @relation("BusinessNotes")
   Campaign       Campaign[]
 }
 

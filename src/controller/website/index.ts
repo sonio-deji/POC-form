@@ -2,10 +2,12 @@ import { Router, Request, Response, NextFunction } from "express";
 import prisma from "../../utils/prisma";
 import { NotBeforeError } from "jsonwebtoken";
 import { NotfoundError } from "../../errors/appError";
+import { checkSubscription } from "../../middleware/subscriptionCheck";
 
 const websiteRoute = Router();
 websiteRoute.get(
   "/",
+  checkSubscription,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const website = await prisma.website.findFirst({

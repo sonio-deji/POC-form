@@ -12,16 +12,17 @@ import invoiceRoutes from "../controller/invoice";
 import forgotPassword from "../controller/forgotpassword";
 import customerRouter from "../controller/customers";
 import socialMediaRoutes from "../controller/socials";
-import { isBusinessAuthorized } from '../middleware/authz';
-import notesRouter from '../controller/notes';
-import campaignRouter from '../controller/campaigns';
+import { isBusinessAuthorized } from "../middleware/authz";
+import notesRouter from "../controller/notes";
+import campaignRouter from "../controller/campaigns";
+import user from "../controller/user";
+import subscriptionRoutes from "../controller/subscription";
 
 const router = Router();
 
 router.use("/api/user", authRouter);
 
 router.use("/api/form", verifyApiToken, checkEmailVerified, formRouter);
-
 
 router.use("/api/business", verifyApiToken, checkEmailVerified, businessRouter);
 
@@ -41,7 +42,8 @@ router.use(
   "/api/customers",
   verifyApiToken,
   checkEmailVerified,
-  isBusinessAuthorized, customerRouter
+  isBusinessAuthorized,
+  customerRouter
 );
 router.use(
   "/api/socials",
@@ -51,10 +53,17 @@ router.use(
 );
 router.use("/api/notes", verifyApiToken, isBusinessAuthorized, notesRouter);
 
-router.use("/api/campaign", verifyApiToken, isBusinessAuthorized, campaignRouter);
-
+router.use(
+  "/api/campaign",
+  verifyApiToken,
+  isBusinessAuthorized,
+  campaignRouter
+);
 
 router.use("/api/customers", verifyApiToken, customerRouter);
 
+router.use("/api/user-settings", verifyApiToken, checkEmailVerified, user);
+
+router.use("/api/subscription", subscriptionRoutes);
 
 export default router;
